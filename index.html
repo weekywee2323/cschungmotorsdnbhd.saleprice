@@ -6,6 +6,10 @@
   <title>CS Chung Seng Motor — 機車價格計算器</title>
   <meta name="description" content="CS Chung Seng Motor SDN BHD — Professional motorcycle price calculator for new and used motorcycles." />
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase Compatibility CDN Libraries -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
@@ -18,20 +22,25 @@
             orbitron: ['Orbitron', 'sans-serif'],
           },
           colors: {
-            neon: { red: '#ff2d55', blue: '#00aaff', redDim: '#aa1e3a', blueDim: '#0077bb' },
-            dark: { 950: '#04040a', 900: '#080810', 800: '#0c0c18', 700: '#10101f', 600: '#161630', 500: '#1c1c3a' },
-          },
-        },
-      },
+            accent: {
+              red: '#dc2626',   // red-600
+              blue: '#2563eb',  // blue-600
+              redHover: '#b91c1c',
+              blueHover: '#1d4ed8'
+            }
+          }
+        }
+      }
     };
   </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     * { font-family: 'Inter', system-ui, sans-serif; }
 
-    /* ===== BACKGROUND ===== */
+    /* ===== BACKGROUND & LIGHT THEME ===== */
     body {
-      background: #080810;
+      background-color: #f8fafc; /* slate-50 */
+      color: #0f172a; /* slate-900 */
       min-height: 100vh;
       position: relative;
       overflow-x: hidden;
@@ -40,497 +49,885 @@
       content: '';
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background:
-        radial-gradient(ellipse 700px 500px at 5% 0%, rgba(255,45,85,0.07), transparent),
-        radial-gradient(ellipse 600px 600px at 95% 100%, rgba(0,170,255,0.06), transparent),
-        radial-gradient(ellipse 400px 300px at 50% 50%, rgba(0,170,255,0.03), transparent);
-    }
-    body::after {
-      content: '';
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-      background-size: 60px 60px;
+        radial-gradient(ellipse 700px 500px at 5% 0%, rgba(220, 38, 38, 0.04), transparent),
+        radial-gradient(ellipse 600px 600px at 95% 100%, rgba(37, 99, 235, 0.04), transparent);
     }
 
-    /* ===== GLASS CARDS ===== */
-    .glass { background: rgba(12,12,24,0.75); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.06); }
-    .glass-light { background: rgba(20,20,40,0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
-
-    /* ===== NEON EFFECTS ===== */
-    .neon-text-red { color: #ff2d55; text-shadow: 0 0 6px rgba(255,45,85,0.6), 0 0 20px rgba(255,45,85,0.25); }
-    .neon-text-blue { color: #00aaff; text-shadow: 0 0 6px rgba(0,170,255,0.6), 0 0 20px rgba(0,170,255,0.25); }
-    .neon-glow-red { box-shadow: 0 0 12px rgba(255,45,85,0.2), 0 0 40px rgba(255,45,85,0.08); }
-    .neon-glow-blue { box-shadow: 0 0 12px rgba(0,170,255,0.2), 0 0 40px rgba(0,170,255,0.08); }
-    .neon-line {
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #ff2d55, #00aaff, transparent);
-      opacity: 0.5;
+    /* ===== CARDS ===== */
+    .card-light {
+      background: #ffffff;
+      border: 1px solid #e2e8f0; /* slate-200 */
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03), 0 2px 10px -1px rgba(15, 23, 42, 0.02);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-light:hover {
+      box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.06), 0 4px 15px -2px rgba(15, 23, 42, 0.03);
     }
 
     /* ===== TABS ===== */
-    .tab-btn { position: relative; transition: all 0.3s ease; }
-    .tab-btn::after {
-      content: ''; position: absolute; bottom: -2px; left: 50%; width: 0; height: 2px;
-      border-radius: 999px; transform: translateX(-50%);
-      background: linear-gradient(90deg, #ff2d55, #00aaff);
-      transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
-    }
-    .tab-btn.active::after { width: 70%; box-shadow: 0 0 8px rgba(0,170,255,0.4); }
-    .tab-btn.active { color: #e2e8f0; }
-
-    /* ===== FORM INPUTS ===== */
-    .form-ctrl {
-      background: rgba(8,8,16,0.7);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: #e2e8f0;
+    .tab-btn {
+      position: relative;
       transition: all 0.25s ease;
     }
-    .form-ctrl:hover { border-color: rgba(255,255,255,0.2); }
-    .form-ctrl:focus { border-color: rgba(0,170,255,0.5); box-shadow: 0 0 0 3px rgba(0,170,255,0.1); outline: none; }
-    .form-ctrl option { background: #0c0c18; color: #e2e8f0; }
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      width: 0;
+      height: 2.5px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #dc2626, #2563eb);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tab-btn.active::after {
+      width: 70%;
+    }
+    .tab-btn.active {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    /* ===== FORM CONTROL ===== */
+    .form-ctrl {
+      background: #ffffff;
+      border: 1px solid #cbd5e1; /* slate-300 */
+      color: #0f172a;
+      transition: all 0.2s ease;
+    }
+    .form-ctrl:hover {
+      border-color: #94a3b8;
+    }
+    .form-ctrl:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      outline: none;
+    }
 
     /* ===== CUSTOM CHECKBOX ===== */
     .chk-box {
-      appearance: none; -webkit-appearance: none;
-      width: 20px; height: 20px; min-width: 20px;
-      border: 2px solid rgba(255,255,255,0.15);
-      border-radius: 5px; background: rgba(8,8,16,0.7);
-      cursor: pointer; transition: all 0.25s ease;
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      border: 2.5px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: all 0.2s ease;
       position: relative;
     }
-    .chk-box:hover { border-color: rgba(0,170,255,0.4); }
+    .chk-box:hover {
+      border-color: #2563eb;
+    }
     .chk-box:checked {
-      background: linear-gradient(135deg, #00aaff, #0077bb);
-      border-color: #00aaff;
-      box-shadow: 0 0 10px rgba(0,170,255,0.35);
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-color: #2563eb;
     }
     .chk-box:checked::after {
-      content: '✓'; position: absolute; color: #fff; font-size: 12px; font-weight: 700;
-      top: 50%; left: 50%; transform: translate(-50%,-50%);
+      content: '✓';
+      position: absolute;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 900;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
 
-    /* ===== BUTTONS ===== */
-    .btn-neon {
-      background: linear-gradient(135deg, #0088cc, #00aaff);
-      position: relative; overflow: hidden;
-      transition: all 0.3s ease;
+    /* ===== LANG SWITCH BUTTONS ===== */
+    .lang-btn {
+      transition: all 0.2s ease;
     }
-    .btn-neon::before {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-      background-size: 200% 100%;
-      animation: shimmer 3s infinite;
-    }
-    .btn-neon:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 25px rgba(0,170,255,0.35);
-    }
-    .btn-neon:active { transform: translateY(0); }
-
-    /* ===== LANG BTNS ===== */
-    .lang-btn { transition: all 0.25s ease; }
     .lang-btn.active {
-      background: linear-gradient(135deg, #ff2d55, #cc1e44);
-      color: #fff;
-      box-shadow: 0 2px 12px rgba(255,45,85,0.3);
+      background-color: #0f172a;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
     }
-    .lang-btn:not(.active):hover { background: rgba(255,255,255,0.06); }
+    .lang-btn:not(.active):hover {
+      background-color: #f1f5f9;
+    }
 
-    /* ===== RADIO CARDS ===== */
-    .radio-card { transition: all 0.25s ease; cursor: pointer; }
-    .radio-card:hover { border-color: rgba(0,170,255,0.3); }
+    /* ===== TRANSACTION SELECTION CARDS ===== */
+    .radio-card {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      background-color: #ffffff;
+    }
+    .radio-card:hover {
+      border-color: #cbd5e1;
+    }
     .radio-card.selected {
-      border-color: #00aaff; background: rgba(0,170,255,0.08);
-      box-shadow: 0 0 0 2px rgba(0,170,255,0.12);
+      border-color: #2563eb;
+      background-color: #eff6ff; /* blue-50 */
+      color: #1e40af;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
     }
 
-    /* ===== TABLE ===== */
-    .res-row { transition: background 0.2s ease; }
-    .res-row:hover { background: rgba(0,170,255,0.05) !important; }
-    .res-row.dimmed td { opacity: 0.35; }
-    .res-row.dimmed:hover { background: transparent !important; }
+    /* ===== SELECTORS GROUP (Tenure & Rate) ===== */
+    .btn-select-item {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ===== TABLE ROW HOVER ===== */
+    .res-row {
+      transition: background-color 0.15s ease;
+    }
+    .res-row:hover {
+      background-color: #f8fafc !important;
+    }
+    .res-row.dimmed td {
+      opacity: 0.45;
+    }
+    .res-row.dimmed:hover {
+      background-color: transparent !important;
+    }
 
     /* ===== ANIMATIONS ===== */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(14px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    @keyframes shimmer {
-      0%   { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
+    .anim-up {
+      animation: fadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
-    @keyframes pulseGlow {
-      0%,100% { box-shadow: 0 0 15px rgba(0,170,255,0.12); }
-      50%     { box-shadow: 0 0 30px rgba(0,170,255,0.22); }
+    .tab-panel {
+      display: none;
+      opacity: 0;
     }
-    .anim-up { animation: fadeUp 0.45s cubic-bezier(0.4,0,0.2,1) forwards; }
-    .anim-up-d1 { animation-delay: 0.08s; opacity: 0; }
-    .anim-up-d2 { animation-delay: 0.16s; opacity: 0; }
-    .pulse-glow { animation: pulseGlow 3.5s ease-in-out infinite; }
+    .tab-panel.active {
+      display: block;
+      animation: fadeUp 0.35s ease forwards;
+    }
 
-    /* ===== TAB PANELS ===== */
-    .tab-panel { display: none; opacity: 0; }
-    .tab-panel.active { display: block; animation: fadeUp 0.4s ease forwards; }
+    /* ===== CUSTOM SCROLLBAR ===== */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
 
-    /* ===== SCROLLBAR ===== */
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-
-    /* ===== DROPDOWN ARROW ===== */
+    /* ===== DROPDOWN CUSTOM ARROW ===== */
     .sel-arrow {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
       background-position: right 12px center;
       background-repeat: no-repeat;
-      background-size: 16px;
+      background-size: 18px;
     }
 
     /* ===== DATA SOURCE BADGE ===== */
-    .src-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; }
-    .src-badge.csv { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
-    .src-badge.mock { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .src-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .src-badge.csv {
+      background-color: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .src-badge.mock {
+      background-color: #fffbeb;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
   </style>
 </head>
-<body class="text-slate-200 antialiased">
+<body class="antialiased">
 <div class="relative z-10 min-h-screen flex flex-col">
 
-<!-- ============================================================ -->
-<!-- HEADER                                                        -->
-<!-- ============================================================ -->
-<header class="glass sticky top-0 z-50 border-b border-white/5">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-16 sm:h-[72px]">
-      <!-- Logo -->
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center font-orbitron font-black text-sm bg-gradient-to-br from-neon-red to-neon-blue shrink-0 shadow-lg" style="text-shadow: 0 0 6px rgba(255,255,255,0.4);">CS</div>
-        <div class="min-w-0">
-          <h1 class="text-sm sm:text-base font-extrabold tracking-wide truncate">
-            <span class="neon-text-red">CS</span>
-            <span class="text-white"> CHUNG SENG MOTOR</span>
-            <span class="text-slate-500 text-xs font-medium ml-1 hidden sm:inline">SDN BHD</span>
-          </h1>
-          <p class="text-[10px] text-slate-500 tracking-widest uppercase font-medium" data-i18n="siteSubtitle">機車價格計算器</p>
+  <!-- ============================================================ -->
+  <!-- HEADER                                                        -->
+  <!-- ============================================================ -->
+  <header class="bg-white/90 backdrop-blur sticky top-0 z-50 border-b border-slate-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-[72px]">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-orbitron font-black text-sm bg-gradient-to-br from-accent-red to-accent-blue text-white shrink-0 shadow-md">CS</div>
+          <div class="min-w-0">
+            <h1 class="text-sm sm:text-base font-black tracking-wide truncate flex items-center">
+              <span class="text-accent-red">CS</span>
+              <span class="text-slate-800 ml-1">CHUNG SENG MOTOR</span>
+              <span class="text-slate-400 text-xs font-semibold ml-1.5 hidden sm:inline">SDN BHD</span>
+            </h1>
+            <p class="text-[10px] text-slate-500 tracking-wider uppercase font-bold" data-i18n="siteSubtitle">機車價格計算器</p>
+          </div>
+        </div>
+        <!-- Right Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Connection Status -->
+          <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-xs font-bold text-slate-600">
+            <span data-i18n="connectionStatus">連線狀態</span>: 
+            <span id="headerConnectionState" class="text-amber-600" data-i18n="statusOffline">離線模擬模式</span>
+          </div>
+          <!-- Language Switcher -->
+          <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 shrink-0" id="langSwitcher">
+            <button class="lang-btn active px-3 py-1.5 rounded-lg text-xs font-bold" data-lang="zh" onclick="switchLang('zh')">中文</button>
+            <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="en" onclick="switchLang('en')">EN</button>
+            <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="ms" onclick="switchLang('ms')">BM</button>
+          </div>
+          <!-- Sign Out Button -->
+          <button id="headerLogoutBtn" onclick="handleLogout()" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-200 bg-white hover:bg-slate-50 shadow-sm hidden flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+            <span data-i18n="btnSignOut">登出</span>
+          </button>
         </div>
       </div>
-      <!-- Language Switcher -->
-      <div class="flex items-center gap-0.5 p-1 rounded-xl glass-light shrink-0 ml-3" id="langSwitcher">
-        <button class="lang-btn active px-3 py-1.5 rounded-lg text-[11px] font-bold" data-lang="zh" onclick="switchLang('zh')">中文</button>
-        <button class="lang-btn px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-500" data-lang="en" onclick="switchLang('en')">EN</button>
-        <button class="lang-btn px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-500" data-lang="ms" onclick="switchLang('ms')">BM</button>
-      </div>
     </div>
-  </div>
-  <div class="neon-line"></div>
-</header>
-
-<!-- ============================================================ -->
-<!-- MAIN                                                          -->
-<!-- ============================================================ -->
-<main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-
-  <!-- Hero -->
-  <div class="text-center mb-8 anim-up">
-    <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-2">
-      <span class="bg-gradient-to-r from-neon-red via-pink-300 to-neon-blue bg-clip-text text-transparent" data-i18n="heroTitle">快速查詢機車價格</span>
-    </h2>
-    <p class="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto" data-i18n="heroDesc">查詢新車官方定價、保險路稅，或評估二手車市場行情。</p>
-  </div>
-
-  <!-- TABS -->
-  <div class="flex justify-center mb-8 anim-up anim-up-d1">
-    <div class="glass-light rounded-2xl p-1.5 flex gap-1">
-      <button id="tabNew" class="tab-btn active flex items-center gap-2 px-5 sm:px-8 py-2.5 rounded-xl text-sm font-semibold" onclick="switchTab('new')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-        <span data-i18n="tabNew">新車定價</span>
-      </button>
-      <button id="tabUsed" class="tab-btn flex items-center gap-2 px-5 sm:px-8 py-2.5 rounded-xl text-sm font-semibold text-slate-500" onclick="switchTab('used')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        <span data-i18n="tabUsed">二手估價</span>
-      </button>
-    </div>
-  </div>
+  </header>
 
   <!-- ============================================================ -->
-  <!-- PANEL: NEW MOTORCYCLE                                        -->
+  <!-- MAIN APP CONTAINER                                           -->
   <!-- ============================================================ -->
-  <section id="panelNew" class="tab-panel active">
-    <div class="grid lg:grid-cols-5 gap-5">
+  <main id="mainApp" class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 hidden">
 
-      <!-- INPUT CARD -->
-      <div class="lg:col-span-2 glass rounded-2xl p-6 sm:p-7 pulse-glow">
-        <h3 class="text-base font-bold mb-0.5 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-neon-blue shadow-[0_0_6px_rgba(0,170,255,0.5)]"></span>
-          <span data-i18n="newInputTitle">新車查詢</span>
-        </h3>
-        <p class="text-[11px] text-slate-500 mb-5" data-i18n="newInputDesc">選擇車型以查詢完整定價</p>
+    <!-- Hero Section -->
+    <div class="text-center mb-8 anim-up">
+      <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-2 tracking-tight">
+        <span class="bg-gradient-to-r from-accent-blue via-indigo-600 to-accent-red bg-clip-text text-transparent" data-i18n="heroTitle">快速查詢機車價格</span>
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto" data-i18n="heroDesc">查詢新車官方定價、保險路稅，或評估二手車 market 行情與車貸試算。</p>
+    </div>
 
-        <!-- Brand -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelBrand">品牌</label>
-        <select id="newBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-3 appearance-none" onchange="onBrandChange('new')">
-          <option value="" data-i18n="phSelect">— 請選擇 —</option>
-        </select>
-
-        <!-- Model -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelModel">型號</label>
-        <select id="newModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-3 appearance-none" disabled>
-          <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
-        </select>
-
-        <!-- Insurance Type -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelInsurance">保險類型</label>
-        <select id="newInsurance" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onNewInputChange()">
-          <option value="3rd" data-i18n="ins3rd">三號保險 (Third Party)</option>
-          <option value="1st" data-i18n="ins1st">一號保險 (First Party)</option>
-        </select>
-
-        <!-- Extra Fees Checkboxes -->
-        <div class="mb-5 space-y-2.5">
-          <p class="text-[11px] font-medium text-slate-400 mb-1" data-i18n="labelExtras">額外費用</p>
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="chkPlate" class="chk-box" onchange="onNewInputChange()" />
-            <span class="text-sm text-slate-300 group-hover:text-white transition-colors" data-i18n="extraPlate">預定車牌費</span>
-          </label>
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
-            <span class="text-sm text-slate-300 group-hover:text-white transition-colors" data-i18n="extraRunner">標車牌人工費</span>
-          </label>
-        </div>
-
-        <button class="btn-neon w-full py-2.5 rounded-xl text-sm font-bold text-white" onclick="calcNew()">
-          <span class="relative z-10 flex items-center justify-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <span data-i18n="btnCalcNew">查詢定價</span>
-          </span>
+    <!-- TABS -->
+    <div class="flex justify-center mb-8 anim-up">
+      <div class="bg-slate-200/60 backdrop-blur rounded-2xl p-1 flex gap-1 border border-slate-300/30">
+        <button id="tabNew" class="tab-btn active flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('new')">
+          <svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          <span data-i18n="tabNew">新車定價</span>
+        </button>
+        <button id="tabUsed" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('used')">
+          <svg class="w-4 h-4 text-accent-red" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span data-i18n="tabUsed">二手估價</span>
+        </button>
+        <button id="tabLoan" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('loan')">
+          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span data-i18n="tabLoan">借貸計算器</span>
+        </button>
+        <button id="tabAdmin" class="tab-btn hidden flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('admin')">
+          <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+          <span data-i18n="tabAdmin">後台管理</span>
         </button>
       </div>
+    </div>
 
-      <!-- RESULT CARD -->
-      <div class="lg:col-span-3 glass rounded-2xl p-6 sm:p-7">
-        <div class="flex items-center justify-between mb-1">
-          <h3 class="text-base font-bold flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-neon-red shadow-[0_0_6px_rgba(255,45,85,0.5)]"></span>
-            <span data-i18n="newResultTitle">新車定價結果</span>
+    <!-- ============================================================ -->
+    <!-- PANEL: NEW MOTORCYCLE                                        -->
+    <!-- ============================================================ -->
+    <section id="panelNew" class="tab-panel active">
+      <div class="grid lg:grid-cols-5 gap-6">
+
+        <!-- INPUT CARD -->
+        <div class="lg:col-span-2 card-light rounded-2xl p-6 sm:p-7">
+          <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+            <span data-i18n="newInputTitle">新車查詢</span>
           </h3>
-          <span id="dataSrcBadge" class="src-badge mock">Mock</span>
-        </div>
-        <p class="text-[11px] text-slate-500 mb-5" data-i18n="newResultDesc">以下為查詢結果，僅供參考</p>
+          <p class="text-xs text-slate-500 mb-5" data-i18n="newInputDesc">選擇車型以查詢完整定價</p>
 
-        <!-- Selected model info -->
-        <div id="newSelectedInfo" class="hidden mb-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xs text-slate-500" data-i18n="selectedModel">已選車型</p>
-              <p class="text-sm font-bold text-white" id="newSelectedName">—</p>
+          <!-- Brand -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelBrand">品牌</label>
+          <select id="newBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onBrandChange('new')">
+            <option value="" data-i18n="phSelect">— 請選擇 —</option>
+          </select>
+
+          <!-- Model -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelModel">型號</label>
+          <select id="newModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onNewInputChange()">
+            <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
+          </select>
+
+          <!-- Insurance Type -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelInsurance">保險類型</label>
+          <select id="newInsurance" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none" onchange="onNewInputChange()">
+            <option value="3rd" data-i18n="ins3rd">三號保險 (Third Party)</option>
+            <option value="1st" data-i18n="ins1st">一號保險 (First Party)</option>
+          </select>
+
+          <!-- Extra Fees Checkboxes -->
+          <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-3">
+            <p class="text-xs font-bold text-slate-700 mb-1" data-i18n="labelExtras">額外費用</p>
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="chkPlate" class="chk-box" onchange="onNewInputChange()" />
+              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraPlate">預定車牌費</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
+              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
+            </label>
+          </div>
+
+          <button class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcNew()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <span data-i18n="btnCalcNew">查詢定價</span>
+          </button>
+        </div>
+
+        <!-- RESULT CARD -->
+        <div class="lg:col-span-3 card-light rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+                <span data-i18n="newResultTitle">新車定價結果</span>
+              </h3>
+              <span id="dataSrcBadge" class="src-badge mock text-xs">Mock</span>
             </div>
-            <div class="text-right">
-              <p class="text-xs text-slate-500" data-i18n="insType">保險類型</p>
-              <p class="text-sm font-semibold neon-text-blue" id="newSelectedIns">—</p>
+            <p class="text-xs text-slate-500 mb-5" data-i18n="newResultDesc">以下為查詢結果，僅供參考</p>
+
+            <!-- Selected model info -->
+            <div id="newSelectedInfo" class="hidden mb-5 px-4 py-3 rounded-xl bg-blue-50/50 border border-blue-100">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-[10px] uppercase font-bold text-slate-400" data-i18n="selectedModel">已選車型</p>
+                  <p class="text-sm font-extrabold text-slate-800" id="newSelectedName">—</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[10px] uppercase font-bold text-slate-400" data-i18n="insType">保險類型</p>
+                  <p class="text-sm font-bold text-accent-blue" id="newSelectedIns">—</p>
+                </div>
+              </div>
             </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                    <th class="text-left px-5 py-3 font-bold" data-i18n="thItem">項目</th>
+                    <th class="text-right px-5 py-3 font-bold" data-i18n="thAmount">金額 (RM)</th>
+                  </tr>
+                </thead>
+                <tbody id="newResultBody">
+                  <!-- MSRP -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span data-i18n="rowMSRP">官方建議售價 (MSRP)</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-emerald-600" id="valMSRP">—</td>
+                  </tr>
+                  <!-- Insurance -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                      <span data-i18n="rowInsurance">預估保險費</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-sky-600" id="valInsurance">—</td>
+                  </tr>
+                  <!-- Road Tax -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      <span data-i18n="rowRoadTax">路稅</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-amber-600" id="valRoadTax">—</td>
+                  </tr>
+                  <!-- Booking Plate -->
+                  <tr class="res-row dimmed border-b border-slate-200" id="rowPlate">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                      <span data-i18n="extraPlate">預定車牌費</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-violet-600" id="valPlate">—</td>
+                  </tr>
+                  <!-- Runner Fee -->
+                  <tr class="res-row dimmed border-b border-slate-200" id="rowRunner">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      <span data-i18n="extraRunner">標車牌人工費</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-rose-600" id="valRunner">—</td>
+                  </tr>
+                  <!-- OTR Total -->
+                  <tr class="res-row border-t-2 border-accent-blue/30 bg-blue-50/30">
+                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-accent-blue shadow-sm"></span>
+                      <span data-i18n="rowOTR">辦到好預估總價 (OTR)</span>
+                    </td>
+                    <td class="px-5 py-4 text-right font-black text-xl text-accent-blue" id="valOTR">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Send to Loan Button -->
+            <div id="newLoanAction" class="hidden mt-4">
+              <button onclick="sendToLoanCalculator('new')" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold shadow transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                <span data-i18n="btnCalcLoanQuick">直接進行車貸試算</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
+            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PANEL: USED MOTORCYCLE                                       -->
+    <!-- ============================================================ -->
+    <section id="panelUsed" class="tab-panel">
+      <div class="grid lg:grid-cols-5 gap-6">
+
+        <!-- INPUT CARD -->
+        <div class="lg:col-span-2 card-light rounded-2xl p-6 sm:p-7">
+          <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+            <span data-i18n="usedInputTitle">二手車估價</span>
+          </h3>
+          <p class="text-xs text-slate-500 mb-5" data-i18n="usedInputDesc">輸入車輛詳細資訊進行估價</p>
+
+          <!-- Brand -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelBrand">品牌</label>
+          <select id="usedBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onBrandChange('used')">
+            <option value="" data-i18n="phSelect">— 請選擇 —</option>
+          </select>
+
+          <!-- Model -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelModel">型號</label>
+          <select id="usedModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled>
+            <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
+          </select>
+
+          <!-- Year -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelYear">出廠年份</label>
+          <input id="usedYear" type="number" placeholder="e.g. 2022" min="2000" max="2026" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" />
+
+          <!-- Mileage -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelMileage">行駛里程數 (km)</label>
+          <input id="usedMileage" type="number" placeholder="e.g. 15000" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" />
+
+          <!-- Condition -->
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelCondition">車況評級</label>
+          <select id="usedCondition" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none">
+            <option value="" data-i18n="phSelect">— 請選擇 —</option>
+            <option value="excellent" data-i18n="condExcellent" data-raw-key="condExcellent">極佳</option>
+            <option value="good" data-i18n="condGood" data-raw-key="condGood">良好</option>
+            <option value="fair" data-i18n="condFair" data-raw-key="condFair">一般</option>
+            <option value="poor" data-i18n="condPoor" data-raw-key="condPoor">需整修</option>
+          </select>
+
+          <!-- Transaction Type -->
+          <label class="block mb-2 text-xs font-bold text-slate-600" data-i18n="labelTxType">買賣類型</label>
+          <div class="flex gap-3 mb-5">
+            <div id="radioBuy" class="radio-card selected flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold" onclick="selectTxType('buy')">
+              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+              <span data-i18n="txBuy">買入</span>
+            </div>
+            <div id="radioSell" class="radio-card flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500" onclick="selectTxType('sell')">
+              <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span data-i18n="txSell">賣出</span>
+            </div>
+          </div>
+
+          <button class="w-full bg-accent-red hover:bg-accent-redHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcUsed()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            <span data-i18n="btnCalcUsed">估算價格</span>
+          </button>
+        </div>
+
+        <!-- RESULT CARD -->
+        <div class="lg:col-span-3 card-light rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+              <span data-i18n="usedResultTitle">二手車估價結果</span>
+            </h3>
+            <p class="text-xs text-slate-500 mb-5" data-i18n="usedResultDesc">根據車況與市場行情的綜合評估</p>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                    <th class="text-left px-4 py-3 font-bold" data-i18n="thEvalItem">評估項目</th>
+                    <th class="text-right px-4 py-3 font-bold" data-i18n="thBasePrice">基礎市場行情</th>
+                    <th class="text-right px-4 py-3 font-bold" data-i18n="thDiscount">車況折價幅度</th>
+                    <th class="text-right px-4 py-3 font-bold" data-i18n="thFinalRange">建議價格區間</th>
+                  </tr>
+                </thead>
+                <tbody id="usedResultBody">
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="evalAge">年份折舊</td>
+                    <td class="px-4 py-3.5 text-right font-medium text-slate-800" id="uBaseAge">—</td>
+                    <td class="px-4 py-3.5 text-right font-bold text-rose-600" id="uDiscAge">—</td>
+                    <td class="px-4 py-3.5 text-right font-semibold text-slate-800" id="uRangeAge">—</td>
+                  </tr>
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="evalMileage">里程折舊</td>
+                    <td class="px-4 py-3.5 text-right font-medium text-slate-800" id="uBaseMile">—</td>
+                    <td class="px-4 py-3.5 text-right font-bold text-rose-600" id="uDiscMile">—</td>
+                    <td class="px-4 py-3.5 text-right font-semibold text-slate-800" id="uRangeMile">—</td>
+                  </tr>
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="evalCondition">車況評估</td>
+                    <td class="px-4 py-3.5 text-right font-medium text-slate-800" id="uBaseCond">—</td>
+                    <td class="px-4 py-3.5 text-right font-bold text-rose-600" id="uDiscCond">—</td>
+                    <td class="px-4 py-3.5 text-right font-semibold text-slate-800" id="uRangeCond">—</td>
+                  </tr>
+                  <tr class="res-row bg-red-50/20">
+                    <td class="px-4 py-4 text-slate-800 font-extrabold" data-i18n="evalFinal">最終建議價格</td>
+                    <td class="px-4 py-4 text-right font-bold text-emerald-600" id="uBaseFinal">—</td>
+                    <td class="px-4 py-4 text-right font-bold text-rose-600" id="uDiscFinal">—</td>
+                    <td class="px-4 py-4 text-right" id="uRangeFinal"><span class="text-slate-400">—</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Send to Loan Button -->
+            <div id="usedLoanAction" class="hidden mt-4">
+              <button onclick="sendToLoanCalculator('used')" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold shadow transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                <span data-i18n="btnCalcLoanQuick">直接進行車貸試算</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
+            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PANEL: LOAN CALCULATOR (Tab 3)                               -->
+    <!-- ============================================================ -->
+    <section id="panelLoan" class="tab-panel">
+      <div class="grid lg:grid-cols-5 gap-6">
+
+        <!-- INPUT CARD -->
+        <div class="lg:col-span-2 card-light rounded-2xl p-6 sm:p-7">
+          <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+            <span data-i18n="loanInputTitle">試算車貸</span>
+          </h3>
+          <p class="text-xs text-slate-500 mb-5" data-i18n="loanInputDesc">輸入貸款金額與條件以估算每月車期</p>
+
+          <!-- Loan Amount -->
+          <div class="mb-4">
+            <label class="block mb-1.5 text-xs font-bold text-slate-600" data-i18n="labelLoanAmount">貸款金額</label>
+            <div class="relative rounded-xl shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span class="text-slate-400 text-sm font-bold">RM</span>
+              </div>
+              <input type="number" id="loanAmount" class="form-ctrl w-full rounded-xl pl-10 pr-4 py-2.5 text-sm" placeholder="e.g. 10000" oninput="onLoanInputChange()" />
+            </div>
+            <!-- Auto Apply Links -->
+            <div class="mt-2.5 flex flex-wrap gap-2">
+              <button id="btnApplyNewOTR" onclick="applyToLoan('new')" class="text-[10px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-2 py-1 rounded-md transition-all flex items-center gap-1">
+                <span>⚡</span> <span data-i18n="applyNewOTR">帶入新車 OTR 價格</span>
+              </button>
+              <button id="btnApplyUsedVal" onclick="applyToLoan('used')" class="text-[10px] font-bold text-accent-red bg-red-50 border border-red-200/50 hover:bg-red-100 px-2 py-1 rounded-md transition-all flex items-center gap-1">
+                <span>⚡</span> <span data-i18n="applyUsedVal">帶入二手建議價格</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tenure -->
+          <div class="mb-5">
+            <label class="block mb-2 text-xs font-bold text-slate-600" data-i18n="labelTenure">借貸期限</label>
+            <div class="grid grid-cols-5 gap-1.5" id="tenureButtonGroup">
+              <button onclick="setTenure(2)" data-val="2" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">2</button>
+              <button onclick="setTenure(3)" data-val="3" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">3</button>
+              <button onclick="setTenure(4)" data-val="4" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">4</button>
+              <button onclick="setTenure(5)" data-val="5" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">5</button>
+              <button onclick="setTenure(7)" data-val="7" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">7</button>
+            </div>
+          </div>
+
+          <!-- Interest Rate -->
+          <div class="mb-6">
+            <label class="block mb-2 text-xs font-bold text-slate-600" data-i18n="labelInterestRate">月利率 (平息 / Flat Rate)</label>
+            <div class="grid grid-cols-4 gap-1.5" id="rateButtonGroup">
+              <button onclick="setRate(0.40)" data-val="0.40" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.40%</button>
+              <button onclick="setRate(0.45)" data-val="0.45" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.45%</button>
+              <button onclick="setRate(0.50)" data-val="0.50" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.50%</button>
+              <button onclick="setRate(0.55)" data-val="0.55" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.55%</button>
+              <button onclick="setRate(0.60)" data-val="0.60" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.60%</button>
+              <button onclick="setRate(0.65)" data-val="0.65" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.65%</button>
+              <button onclick="setRate(0.70)" data-val="0.70" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.70%</button>
+              <button onclick="setRate(0.75)" data-val="0.75" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.75%</button>
+            </div>
+          </div>
+
+          <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcLoan()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            <span data-i18n="btnCalcLoan">計算車貸</span>
+          </button>
+        </div>
+
+        <!-- RESULT CARD -->
+        <div class="lg:col-span-3 card-light rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+              <span data-i18n="loanResultTitle">借貸估算結果</span>
+            </h3>
+            <p class="text-xs text-slate-500 mb-5" data-i18n="loanResultDesc">以下為試算之每月車期與利息支出</p>
+
+            <!-- Instalment Highlight Display -->
+            <div class="mb-6 p-6 rounded-2xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center text-center">
+              <p class="text-xs uppercase font-extrabold tracking-wider text-indigo-500/80 mb-1" data-i18n="rowMonthlyInstalment">每月預估車期</p>
+              <p class="text-3xl sm:text-4xl font-black text-indigo-700 tracking-tight" id="valMonthlyInstalment">—</p>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-sm">
+                <tbody>
+                  <!-- Loan Amount -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3.5 text-slate-700 font-medium flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                      <span data-i18n="rowLoanAmount">貸款總額 (本金)</span>
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-semibold text-slate-800" id="valLoanPrincipal">—</td>
+                  </tr>
+                  <!-- Total Interest -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3.5 text-slate-700 font-medium flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      <span data-i18n="rowTotalInterest">總利息</span>
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-bold text-rose-600" id="valLoanInterest">—</td>
+                  </tr>
+                  <!-- Total Repayment -->
+                  <tr class="res-row bg-slate-50">
+                    <td class="px-5 py-4 text-slate-800 font-extrabold flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span data-i18n="rowTotalRepayment">總還款額</span>
+                    </td>
+                    <td class="px-5 py-4 text-right font-extrabold text-slate-800" id="valLoanRepay">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
+            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PANEL: ADMIN DASHBOARD (Tab 4)                               -->
+    <!-- ============================================================ -->
+    <section id="panelAdmin" class="tab-panel">
+      <div class="card-light rounded-2xl p-6 sm:p-7">
+        <!-- Top Title & Buttons -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+              <span data-i18n="dbSettingsTitle">後台數據管理</span>
+            </h3>
+            <p class="text-xs text-slate-500" data-i18n="dbSettingsDesc">手動修改車型價格或批次導入 CSV 檔案</p>
+          </div>
+          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+            <button onclick="openEditModal(null)" class="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 transition-all">
+              <span>+</span> <span data-i18n="btnAdminAdd">新增車型</span>
+            </button>
+            <label class="flex-1 sm:flex-initial bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow cursor-pointer flex items-center justify-center gap-1.5 transition-all">
+              <svg class="w-3.5 h-3.5 text-indigo-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span data-i18n="btnAdminImport">批次導入 CSV</span>
+              <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleCSVUpload(event)" />
+            </label>
           </div>
         </div>
 
-        <div class="overflow-x-auto rounded-xl border border-white/[0.06]">
+        <!-- Drag Drop Zone -->
+        <div id="csvDropZone" ondragover="event.preventDefault(); this.classList.add('bg-slate-100')" ondragleave="this.classList.remove('bg-slate-100')" ondrop="handleCSVDrop(event)" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center text-slate-500 hover:border-indigo-500 hover:text-slate-800 transition-all mb-6 cursor-pointer" onclick="document.getElementById('csvFileInput').click()">
+          <svg class="w-10 h-10 mx-auto text-slate-400 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+          <span data-i18n="dragDropCsv" class="text-xs font-semibold">拖曳 CSV 檔案至此或點擊上傳</span>
+        </div>
+
+        <!-- Search Filter -->
+        <div class="mb-4">
+          <input type="text" id="adminSearchInput" oninput="renderAdminTable()" placeholder="搜尋品牌或型號..." data-i18n-placeholder="searchPlaceholder" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm" />
+        </div>
+
+        <!-- Grid Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
           <table class="w-full text-sm">
             <thead>
-              <tr class="bg-white/[0.03] text-slate-400 text-[11px] uppercase tracking-wider">
-                <th class="text-left px-5 py-2.5 font-semibold" data-i18n="thItem">項目</th>
-                <th class="text-right px-5 py-2.5 font-semibold" data-i18n="thAmount">金額 (RM)</th>
+              <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                <th class="text-left px-4 py-3 font-bold" data-i18n="labelBrand">品牌</th>
+                <th class="text-left px-4 py-3 font-bold" data-i18n="labelModel">型號</th>
+                <th class="text-right px-4 py-3 font-bold" data-i18n="rowMSRP">MSRP</th>
+                <th class="text-right px-4 py-3 font-bold" data-i18n="ins1st">一號保險</th>
+                <th class="text-right px-4 py-3 font-bold" data-i18n="ins3rd">三號保險</th>
+                <th class="text-right px-4 py-3 font-bold" data-i18n="rowRoadTax">路稅</th>
+                <th class="text-right px-4 py-3 font-bold" data-i18n="actions">操作</th>
               </tr>
             </thead>
-            <tbody id="newResultBody">
-              <!-- MSRP -->
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-5 py-3.5 text-slate-300 flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400/70"></span>
-                  <span data-i18n="rowMSRP">官方建議售價 (MSRP)</span>
-                </td>
-                <td class="px-5 py-3.5 text-right font-semibold text-emerald-300" id="valMSRP">—</td>
-              </tr>
-              <!-- Insurance -->
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-5 py-3.5 text-slate-300 flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-sky-400/70"></span>
-                  <span data-i18n="rowInsurance">預估保險費</span>
-                </td>
-                <td class="px-5 py-3.5 text-right font-semibold text-sky-300" id="valInsurance">—</td>
-              </tr>
-              <!-- Road Tax -->
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-5 py-3.5 text-slate-300 flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400/70"></span>
-                  <span data-i18n="rowRoadTax">路稅</span>
-                </td>
-                <td class="px-5 py-3.5 text-right font-semibold text-amber-300" id="valRoadTax">—</td>
-              </tr>
-              <!-- Booking Plate -->
-              <tr class="res-row dimmed border-t border-white/[0.05]" id="rowPlate">
-                <td class="px-5 py-3.5 text-slate-300 flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-violet-400/70"></span>
-                  <span data-i18n="extraPlate">預定車牌費</span>
-                </td>
-                <td class="px-5 py-3.5 text-right font-semibold text-violet-300" id="valPlate">—</td>
-              </tr>
-              <!-- Runner Fee -->
-              <tr class="res-row dimmed border-t border-white/[0.05]" id="rowRunner">
-                <td class="px-5 py-3.5 text-slate-300 flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-pink-400/70"></span>
-                  <span data-i18n="extraRunner">標車牌人工費</span>
-                </td>
-                <td class="px-5 py-3.5 text-right font-semibold text-pink-300" id="valRunner">—</td>
-              </tr>
-              <!-- OTR Total -->
-              <tr class="res-row border-t-2 border-neon-blue/20 bg-white/[0.02]">
-                <td class="px-5 py-4 font-bold text-white flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-neon-blue shadow-[0_0_4px_rgba(0,170,255,0.6)]"></span>
-                  <span data-i18n="rowOTR">辦到好預估總價 (OTR)</span>
-                </td>
-                <td class="px-5 py-4 text-right font-extrabold text-lg neon-text-blue" id="valOTR">—</td>
-              </tr>
+            <tbody id="adminTableBody" class="divide-y divide-slate-200">
+              <!-- populated by JS -->
             </tbody>
           </table>
         </div>
-
-        <div class="mt-3 flex items-start gap-2 text-[10px] text-slate-600">
-          <svg class="w-3 h-3 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
-        </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+  </main>
 
   <!-- ============================================================ -->
-  <!-- PANEL: USED MOTORCYCLE                                       -->
+  <!-- LOGIN OVERLAY GATE                                           -->
   <!-- ============================================================ -->
-  <section id="panelUsed" class="tab-panel">
-    <div class="grid lg:grid-cols-5 gap-5">
+  <div id="loginOverlay" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-50 p-4">
+    <div class="w-full max-w-md card-light rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative min-h-[480px]">
+      <!-- Header -->
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center font-orbitron font-black text-base bg-gradient-to-br from-accent-red to-accent-blue text-white shadow-md mb-3">CS</div>
+        <h2 class="text-xl font-black text-slate-800 tracking-tight flex justify-center gap-1">
+          <span class="text-accent-red">CS</span>
+          <span>CHUNG SENG MOTOR</span>
+        </h2>
+        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5" data-i18n="siteSubtitle">機車價格計算器</p>
+      </div>
 
-      <!-- INPUT CARD -->
-      <div class="lg:col-span-2 glass rounded-2xl p-6 sm:p-7 pulse-glow">
-        <h3 class="text-base font-bold mb-0.5 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-neon-red shadow-[0_0_6px_rgba(255,45,85,0.5)]"></span>
-          <span data-i18n="usedInputTitle">二手車估價</span>
-        </h3>
-        <p class="text-[11px] text-slate-500 mb-5" data-i18n="usedInputDesc">輸入車輛詳細資訊進行估價</p>
-
-        <!-- Brand -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelBrand">品牌</label>
-        <select id="usedBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-3 appearance-none" onchange="onBrandChange('used')">
-          <option value="" data-i18n="phSelect">— 請選擇 —</option>
-        </select>
-
-        <!-- Model -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelModel">型號</label>
-        <select id="usedModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-3 appearance-none" disabled>
-          <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
-        </select>
-
-        <!-- Year -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelYear">出廠年份</label>
-        <input id="usedYear" type="number" placeholder="e.g. 2022" min="2000" max="2026" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-3" />
-
-        <!-- Mileage -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelMileage">行駛里程數 (km)</label>
-        <input id="usedMileage" type="number" placeholder="e.g. 15000" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-3" />
-
-        <!-- Condition -->
-        <label class="block mb-1 text-[11px] font-medium text-slate-400" data-i18n="labelCondition">車況評級</label>
-        <select id="usedCondition" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-3 appearance-none">
-          <option value="" data-i18n="phSelect">— 請選擇 —</option>
-          <option value="excellent" data-i18n="condExcellent">極佳</option>
-          <option value="good" data-i18n="condGood">良好</option>
-          <option value="fair" data-i18n="condFair">一般</option>
-          <option value="poor" data-i18n="condPoor">需整修</option>
-        </select>
-
-        <!-- Transaction Type -->
-        <label class="block mb-2 text-[11px] font-medium text-slate-400" data-i18n="labelTxType">買賣類型</label>
-        <div class="flex gap-3 mb-5">
-          <div id="radioBuy" class="radio-card selected flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm font-medium" onclick="selectTxType('buy')">
-            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
-            <span data-i18n="txBuy">買入</span>
-          </div>
-          <div id="radioSell" class="radio-card flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-slate-500" onclick="selectTxType('sell')">
-            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span data-i18n="txSell">賣出</span>
-          </div>
+      <!-- Login Form / Status warnings -->
+      <div>
+        <!-- Connection Warning if Firebase Config is empty -->
+        <div id="dbWarningBadge" class="hidden mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-700 font-medium">
+          <p class="font-bold flex items-center gap-1">
+            <span>⚠️</span> <span data-i18n="statusOffline">離線模擬模式</span>
+          </p>
+          <p class="mt-0.5">未偵測到 Firebase 資料庫設定。您可以點擊下方齒輪設定進行連接，或直接進入離線測試模式體驗計算器功能。</p>
         </div>
 
-        <button class="btn-neon w-full py-2.5 rounded-xl text-sm font-bold text-white" onclick="calcUsed()">
-          <span class="relative z-10 flex items-center justify-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-            <span data-i18n="btnCalcUsed">估算價格</span>
-          </span>
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="email">使用者 ID</label>
+            <input type="text" id="loginEmail" required class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm" placeholder="e.g. weeky" data-i18n-placeholder="phLoginEmail" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="password">密碼</label>
+            <input type="password" id="loginPass" required class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm" placeholder="••••••••" />
+          </div>
+          <button type="submit" id="loginSubmitBtn" class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all">
+            <span data-i18n="btnSignIn">登入系統</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-4 text-xs font-bold text-slate-500">
+        <button onclick="openSettingsModal()" class="hover:text-slate-800 flex items-center gap-1.5 transition-colors">
+          <span>⚙️</span> <span data-i18n="dbSettingsTitle">Firebase 設定</span>
+        </button>
+        <button id="loginBypassBtn" onclick="enterDemoMode()" class="hover:text-slate-800 text-slate-500 border border-slate-200 rounded-xl px-3 py-1.5 hover:bg-slate-100 transition-all flex items-center gap-1">
+          <span data-i18n="btnDemoMode">使用離線測試模式</span> ➡️
         </button>
       </div>
-
-      <!-- RESULT CARD -->
-      <div class="lg:col-span-3 glass rounded-2xl p-6 sm:p-7">
-        <h3 class="text-base font-bold mb-0.5 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-neon-red shadow-[0_0_6px_rgba(255,45,85,0.5)]"></span>
-          <span data-i18n="usedResultTitle">二手車估價結果</span>
-        </h3>
-        <p class="text-[11px] text-slate-500 mb-5" data-i18n="usedResultDesc">根據車況與市場行情的綜合評估</p>
-
-        <div class="overflow-x-auto rounded-xl border border-white/[0.06]">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-white/[0.03] text-slate-400 text-[11px] uppercase tracking-wider">
-                <th class="text-left px-4 py-2.5 font-semibold" data-i18n="thEvalItem">評估項目</th>
-                <th class="text-right px-4 py-2.5 font-semibold" data-i18n="thBasePrice">基礎市場行情</th>
-                <th class="text-right px-4 py-2.5 font-semibold" data-i18n="thDiscount">車況折價幅度</th>
-                <th class="text-right px-4 py-2.5 font-semibold" data-i18n="thFinalRange">建議價格區間</th>
-              </tr>
-            </thead>
-            <tbody id="usedResultBody">
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-4 py-3.5 text-slate-300" data-i18n="evalAge">年份折舊</td>
-                <td class="px-4 py-3.5 text-right font-medium text-slate-300" id="uBaseAge">—</td>
-                <td class="px-4 py-3.5 text-right font-medium text-rose-300" id="uDiscAge">—</td>
-                <td class="px-4 py-3.5 text-right text-slate-300" id="uRangeAge">—</td>
-              </tr>
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-4 py-3.5 text-slate-300" data-i18n="evalMileage">里程折舊</td>
-                <td class="px-4 py-3.5 text-right font-medium text-slate-300" id="uBaseMile">—</td>
-                <td class="px-4 py-3.5 text-right font-medium text-rose-300" id="uDiscMile">—</td>
-                <td class="px-4 py-3.5 text-right text-slate-300" id="uRangeMile">—</td>
-              </tr>
-              <tr class="res-row border-t border-white/[0.05]">
-                <td class="px-4 py-3.5 text-slate-300" data-i18n="evalCondition">車況評估</td>
-                <td class="px-4 py-3.5 text-right font-medium text-slate-300" id="uBaseCond">—</td>
-                <td class="px-4 py-3.5 text-right font-medium text-rose-300" id="uDiscCond">—</td>
-                <td class="px-4 py-3.5 text-right text-slate-300" id="uRangeCond">—</td>
-              </tr>
-              <tr class="res-row border-t-2 border-neon-red/20 bg-white/[0.02]">
-                <td class="px-4 py-4 text-white font-bold" data-i18n="evalFinal">最終建議價格</td>
-                <td class="px-4 py-4 text-right font-bold text-emerald-300" id="uBaseFinal">—</td>
-                <td class="px-4 py-4 text-right font-bold text-rose-300" id="uDiscFinal">—</td>
-                <td class="px-4 py-4 text-right" id="uRangeFinal"><span class="text-slate-600">—</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="mt-3 flex items-start gap-2 text-[10px] text-slate-600">
-          <svg class="w-3 h-3 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
-        </div>
-      </div>
     </div>
-  </section>
+  </div>
 
-</main>
+  <!-- ============================================================ -->
+  <!-- EDIT MODAL FORM                                              -->
+  <!-- ============================================================ -->
+  <div id="editModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeEditModal()"></div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xl w-full max-w-lg relative z-10 anim-up">
+      <h3 id="modalTitle" class="text-base font-extrabold text-slate-800 mb-4" data-i18n="btnEdit">編輯車型</h3>
+      <form id="editForm" onsubmit="saveModel(event)" class="space-y-4">
+        <input type="hidden" id="editId" />
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelBrand">品牌</label>
+            <input type="text" id="editBrand" required class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelModel">型號</label>
+            <input type="text" id="editModel" required class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="rowMSRP">MSRP (RM)</label>
+            <input type="number" id="editMSRP" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="rowRoadTax">路稅 (RM)</label>
+            <input type="number" id="editRoadTax" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="extraPlate">車牌費 (RM)</label>
+            <input type="number" id="editPlate" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="ins1st">一號保險 (RM)</label>
+            <input type="number" id="editIns1st" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="ins3rd">三號保險 (RM)</label>
+            <input type="number" id="editIns3rd" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="extraRunner">跑手費 (RM)</label>
+            <input type="number" id="editRunner" required min="0" class="form-ctrl w-full rounded-xl px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50" data-i18n="btnCancel">取消</button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow" data-i18n="btnSave">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-<!-- FOOTER -->
-<footer class="text-center py-5 text-[11px] text-slate-600 border-t border-white/[0.04]">
-  <p>© 2026 CS Chung Seng Motor SDN BHD — <span data-i18n="footerText">內部原型 v2.0</span></p>
-</footer>
+  <!-- ============================================================ -->
+  <!-- DATABASE SETTINGS MODAL                                      -->
+  <!-- ============================================================ -->
+  <div id="settingsModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeSettingsModal()"></div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xl w-full max-w-md relative z-10 anim-up">
+      <h3 class="text-base font-extrabold text-slate-800 mb-1" data-i18n="dbSettingsTitle">Firebase 設定</h3>
+      <p class="text-xs text-slate-500 mb-4" data-i18n="dbSettingsDesc">設定 Firebase 參數以連接雲端 Firestore 與啟用登入權限</p>
+      <form onsubmit="saveDatabaseSettings(event)" class="space-y-4">
+        <!-- Firebase Config Code Block -->
+        <div>
+          <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelDbUrl">Firebase Config JSON / JS</label>
+          <textarea id="settingFirebaseConfig" required rows="6" placeholder='{ "apiKey": "...", "projectId": "...", ... }' data-i18n-placeholder="phFirebaseConfig" class="form-ctrl w-full rounded-xl px-3 py-2 text-xs font-mono"></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50" data-i18n="btnCancel">取消</button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow" data-i18n="btnSaveSettings">儲存設定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="text-center py-6 text-[11px] text-slate-400 border-t border-slate-200/80 bg-white">
+    <p>© 2026 CS Chung Seng Motor SDN BHD — <span data-i18n="footerText">內部原型 v3.0</span></p>
+  </footer>
 
 </div>
 
 <!-- ============================================================ -->
-<!-- JAVASCRIPT                                                    -->
+<!-- JAVASCRIPT CODE                                              -->
 <!-- ============================================================ -->
 <script>
 // ================================================================
@@ -538,250 +935,621 @@
 // ================================================================
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSsm9C0_7QF40Puuy9bwmKVVlhgUjdJDZtRqer7mVxBnpvVyLGRRtI9QolLQnenZ6U2Ocn5OiNrSk1m/pub?output=csv';
 
-// ================================================================
-// I18N
-// ================================================================
-const i18n = {
-  zh: {
-    siteSubtitle:'機車價格計算器', heroTitle:'快速查詢機車價格',
-    heroDesc:'查詢新車官方定價、保險路稅，或評估二手車市場行情。',
-    tabNew:'新車定價', tabUsed:'二手估價',
-    newInputTitle:'新車查詢', newInputDesc:'選擇車型以查詢完整定價',
-    labelBrand:'品牌', labelModel:'型號', labelInsurance:'保險類型',
-    labelExtras:'額外費用', extraPlate:'預定車牌費', extraRunner:'標車牌人工費',
-    phSelect:'— 請選擇 —', phSelectBrandFirst:'— 請先選擇品牌 —',
-    ins1st:'一號保險 (First Party)', ins3rd:'三號保險 (Third Party)',
-    btnCalcNew:'查詢定價',
-    newResultTitle:'新車定價結果', newResultDesc:'以下為查詢結果，僅供參考',
-    selectedModel:'已選車型', insType:'保險類型',
-    thItem:'項目', thAmount:'金額 (RM)',
-    rowMSRP:'官方建議售價 (MSRP)', rowInsurance:'預估保險費', rowRoadTax:'路稅', rowOTR:'辦到好預估總價 (OTR)',
-    usedInputTitle:'二手車估價', usedInputDesc:'輸入車輛詳細資訊進行估價',
-    labelYear:'出廠年份', labelMileage:'行駛里程數 (km)', labelCondition:'車況評級', labelTxType:'買賣類型',
-    condExcellent:'極佳', condGood:'良好', condFair:'一般', condPoor:'需整修',
-    txBuy:'買入', txSell:'賣出', btnCalcUsed:'估算價格',
-    usedResultTitle:'二手車估價結果', usedResultDesc:'根據車況與市場行情的綜合評估',
-    thEvalItem:'評估項目', thBasePrice:'基礎市場行情', thDiscount:'車況折價幅度', thFinalRange:'建議價格區間',
-    evalAge:'年份折舊', evalMileage:'里程折舊', evalCondition:'車況評估', evalFinal:'最終建議價格',
-    disclaimer:'以上價格僅供參考，實際價格請以門市報價為準。',
-    footerText:'內部原型 v2.0',
-    alertBrand:'請選擇品牌。', alertModel:'請選擇型號。', alertFill:'請填寫所有欄位。',
-    rangeLabel:'最低 / 最高',
-  },
-  en: {
-    siteSubtitle:'Motorcycle Price Calculator', heroTitle:'Motorcycle Price Lookup',
-    heroDesc:'Check new motorcycle pricing, insurance & road tax, or estimate used bike value.',
-    tabNew:'New Pricing', tabUsed:'Used Valuation',
-    newInputTitle:'New Motorcycle', newInputDesc:'Select a model to view full pricing',
-    labelBrand:'Brand', labelModel:'Model', labelInsurance:'Insurance Type',
-    labelExtras:'Extra Fees', extraPlate:'Booking Motor Plate Number', extraRunner:'Runner Fee for Bidding Plate',
-    phSelect:'— Select —', phSelectBrandFirst:'— Select brand first —',
-    ins1st:'First Party Insurance', ins3rd:'Third Party Insurance',
-    btnCalcNew:'Get Pricing',
-    newResultTitle:'New Motorcycle Pricing', newResultDesc:'Estimated results for reference only',
-    selectedModel:'Selected Model', insType:'Insurance Type',
-    thItem:'Item', thAmount:'Amount (RM)',
-    rowMSRP:'MSRP (Retail Price)', rowInsurance:'Estimated Insurance', rowRoadTax:'Road Tax', rowOTR:'On-The-Road Price (OTR)',
-    usedInputTitle:'Used Valuation', usedInputDesc:'Enter vehicle details for valuation',
-    labelYear:'Year of Manufacture', labelMileage:'Mileage (km)', labelCondition:'Condition', labelTxType:'Transaction Type',
-    condExcellent:'Excellent', condGood:'Good', condFair:'Fair', condPoor:'Needs Repair',
-    txBuy:'Buy', txSell:'Sell', btnCalcUsed:'Calculate',
-    usedResultTitle:'Used Motorcycle Result', usedResultDesc:'Assessment based on condition & market data',
-    thEvalItem:'Item', thBasePrice:'Base Market Price', thDiscount:'Condition Adj.', thFinalRange:'Price Range',
-    evalAge:'Age Depreciation', evalMileage:'Mileage Depreciation', evalCondition:'Condition Assessment', evalFinal:'Final Suggested Price',
-    disclaimer:'Prices shown are estimates. Please consult the dealer for actual pricing.',
-    footerText:'Internal Prototype v2.0',
-    alertBrand:'Please select a brand.', alertModel:'Please select a model.', alertFill:'Please fill in all fields.',
-    rangeLabel:'Low / High',
-  },
-  ms: {
-    siteSubtitle:'Kalkulator Harga Motosikal', heroTitle:'Semakan Harga Motosikal',
-    heroDesc:'Semak harga motosikal baru, insurans & cukai jalan, atau anggar nilai motosikal terpakai.',
-    tabNew:'Harga Baru', tabUsed:'Penilaian Terpakai',
-    newInputTitle:'Motosikal Baru', newInputDesc:'Pilih model untuk harga penuh',
-    labelBrand:'Jenama', labelModel:'Model', labelInsurance:'Jenis Insurans',
-    labelExtras:'Yuran Tambahan', extraPlate:'Yuran Tempahan Nombor Plat', extraRunner:'Yuran Runner Bidaan Plat',
-    phSelect:'— Sila Pilih —', phSelectBrandFirst:'— Pilih jenama dahulu —',
-    ins1st:'Insurans Pihak Pertama', ins3rd:'Insurans Pihak Ketiga',
-    btnCalcNew:'Dapatkan Harga',
-    newResultTitle:'Harga Motosikal Baru', newResultDesc:'Anggaran untuk rujukan sahaja',
-    selectedModel:'Model Dipilih', insType:'Jenis Insurans',
-    thItem:'Perkara', thAmount:'Jumlah (RM)',
-    rowMSRP:'Harga Runcit (MSRP)', rowInsurance:'Anggaran Insurans', rowRoadTax:'Cukai Jalan', rowOTR:'Harga Atas Jalan (OTR)',
-    usedInputTitle:'Penilaian Terpakai', usedInputDesc:'Masukkan maklumat kenderaan untuk penilaian',
-    labelYear:'Tahun Pembuatan', labelMileage:'Jarak Tempuh (km)', labelCondition:'Keadaan', labelTxType:'Jenis Transaksi',
-    condExcellent:'Cemerlang', condGood:'Baik', condFair:'Sederhana', condPoor:'Perlu Pembaikan',
-    txBuy:'Beli', txSell:'Jual', btnCalcUsed:'Kira Harga',
-    usedResultTitle:'Keputusan Penilaian', usedResultDesc:'Penilaian berdasarkan keadaan & pasaran',
-    thEvalItem:'Item', thBasePrice:'Harga Asas', thDiscount:'Pelarasan', thFinalRange:'Julat Harga',
-    evalAge:'Susut Nilai Umur', evalMileage:'Susut Nilai Jarak', evalCondition:'Penilaian Keadaan', evalFinal:'Harga Cadangan Akhir',
-    disclaimer:'Harga adalah anggaran. Sila hubungi peniaga untuk harga sebenar.',
-    footerText:'Prototaip Dalaman v2.0',
-    alertBrand:'Sila pilih jenama.', alertModel:'Sila pilih model.', alertFill:'Sila isi semua ruangan.',
-    rangeLabel:'Rendah / Tinggi',
-  },
+// Default pre-filled Firebase configuration from the user's project settings
+const DEFAULT_FIREBASE_CONFIG = `
+const firebaseConfig = {
+  apiKey: "AIzaSyCbkOCDGlRGV4oButx5mjS-gZ0XCvXeoPM",
+  authDomain: "cs-chung-seng-motor-system.firebaseapp.com",
+  projectId: "cs-chung-seng-motor-system",
+  storageBucket: "cs-chung-seng-motor-system.firebasestorage.app",
+  messagingSenderId: "699631564732",
+  appId: "1:699631564732:web:da33edfcc3693452299db9"
 };
+`;
 
 // ================================================================
-// STATE
+// SYSTEM STATE Variables
 // ================================================================
 let currentLang = 'zh';
 let currentTxType = 'buy';
-let motorcycleData = [];   // parsed from CSV or mock
-let brandMap = {};          // { brand: [model1, model2, ...] }
-let dataSource = 'mock';   // 'csv' or 'mock'
-let lastNewCalc = null;    // cached new calc result for live checkbox updates
+let motorcycleData = [];   // Loaded from Firebase or Mock Data
+let brandMap = {};          // { Brand: [model1, model2, ...] }
+let dataSource = 'mock';   // 'firebase' or 'mock'
+
+let lastNewCalc = null;    // Cached New Calc object
+let lastNewOTRVal = 0;     // OTR total price calculated
+let lastUsedVal = 0;       // Suggested used price calculated
+
+// Loan variables
+let loanTenure = 5;
+let loanRate = 0.55;
+
+// Database & Role configurations
+let firebaseConfigStr = localStorage.getItem('fbConfig') || DEFAULT_FIREBASE_CONFIG;
+let firebaseApp = null;
+let db = null;
+let isLoggedIn = false;
+let isDemoMode = false;
 
 // ================================================================
-// MOCK DATA (mirrors CSV structure)
+// I18N Translations
+// ================================================================
+const i18n = {
+  zh: {
+    siteSubtitle: '機車價格計算器',
+    heroTitle: '快速查詢機車價格',
+    heroDesc: '查詢新車官方定價、保險路稅，或評估二手車 market 行情與車貸試算。',
+    tabNew: '新車定價',
+    tabUsed: '二手估價',
+    tabLoan: '借貸計算器',
+    tabAdmin: '後台管理',
+    newInputTitle: '新車查詢',
+    newInputDesc: '選擇車型以查詢完整定價',
+    labelBrand: '品牌',
+    labelModel: '型號',
+    labelInsurance: '保險類型',
+    labelExtras: '額外費用',
+    extraPlate: '預定車牌費',
+    extraRunner: '標車牌人工費',
+    phSelect: '— 請選擇 —',
+    phSelectBrandFirst: '— 請先選擇品牌 —',
+    ins1st: '一號保險 (First Party)',
+    ins3rd: '三號保險 (Third Party)',
+    btnCalcNew: '查詢定價',
+    newResultTitle: '新車定價結果',
+    newResultDesc: '以下為查詢結果，僅供參考',
+    selectedModel: '已選車型',
+    insType: '保險類型',
+    thItem: '項目',
+    thAmount: '金額 (RM)',
+    rowMSRP: '官方建議售價 (MSRP)',
+    rowInsurance: '預估保險費',
+    rowRoadTax: '路稅',
+    rowOTR: '辦到好預估總價 (OTR)',
+    usedInputTitle: '二手車估價',
+    usedInputDesc: '輸入車輛詳細資訊進行估價',
+    labelYear: '出廠年份',
+    labelMileage: '行駛里程數 (km)',
+    labelCondition: '車況評級',
+    labelTxType: '買賣類型',
+    condExcellent: '極佳',
+    condGood: '良好',
+    condFair: '一般',
+    condPoor: '需整修',
+    txBuy: '買入',
+    txSell: '賣出',
+    btnCalcUsed: '估算價格',
+    usedResultTitle: '二手車估價結果',
+    usedResultDesc: '根據車況與市場行情的綜合評估',
+    thEvalItem: '評估項目',
+    thBasePrice: '基礎市場行情',
+    thDiscount: '車況折價幅度',
+    thFinalRange: '建議價格區間',
+    evalAge: '年份折舊',
+    evalMileage: '里程折舊',
+    evalCondition: '車況評估',
+    evalFinal: '最終建議價格',
+    disclaimer: '以上價格僅供參考，實際價格請以門市報價為準。',
+    footerText: '內部原型 v3.0',
+    alertBrand: '請選擇品牌。',
+    alertModel: '請選擇型號。',
+    alertFill: '請填寫所有欄位。',
+    rangeLabel: '最低 / 最高',
+    loanInputTitle: '試算車貸',
+    loanInputDesc: '輸入貸款金額與條件以估算每月車期',
+    labelLoanAmount: '貸款金額',
+    labelTenure: '借貸期限',
+    labelInterestRate: '月利率 (平息 / Flat Rate)',
+    btnCalcLoan: '計算車貸',
+    loanResultTitle: '借貸估算結果',
+    loanResultDesc: '以下為試算之每月車期與利息支出',
+    rowMonthlyInstalment: '每月預估車期',
+    rowLoanAmount: '貸款總額 (本金)',
+    rowTotalInterest: '總利息',
+    rowTotalRepayment: '總還款額',
+    applyNewOTR: '帶入新車 OTR 價格',
+    applyUsedVal: '帶入二手建議價格',
+    noValuesToApply: '無可用的估算價格',
+    yearsSuffix: '年',
+    btnCalcLoanQuick: '直接進行車貸試算',
+    loginTitle: '銷售系統登入',
+    loginDesc: '請輸入銷售人員帳號密碼以進入計算系統',
+    email: '使用者 ID',
+    password: '密碼',
+    btnSignIn: '登入系統',
+    btnDemoMode: '使用離線測試模式',
+    btnSaveSettings: '儲存設定',
+    dbSettingsTitle: 'Firebase 設定',
+    dbSettingsDesc: '設定 Firebase 參數以連接雲端 Firestore 與啟用登入權限',
+    labelDbUrl: 'Firebase Config JSON / JS',
+    phLoginEmail: '例如: weeky 或 sales1',
+    phFirebaseConfig: '在此處貼上 Firebase SDK 設定代碼，例如：\nconst firebaseConfig = {\n  apiKey: "...",\n  projectId: "..."\n};',
+    btnSignOut: '登出',
+    connectionStatus: '連線狀態',
+    statusConnected: '已連接 Firebase',
+    statusOffline: '離線模擬模式',
+    btnAdminAdd: '新增車型',
+    btnAdminImport: '批次導入 CSV',
+    dragDropCsv: '拖曳 CSV 檔案至此或點擊上傳',
+    searchPlaceholder: '搜尋品牌或型號...',
+    actions: '操作',
+    btnEdit: '編輯',
+    btnDelete: '刪除',
+    btnCancel: '取消',
+    btnSave: '儲存',
+    alertDbSaved: 'Firebase 設定已儲存並重新載入！',
+    alertLoginFailed: '登入失敗，請確認您的帳號密碼或資料庫設定。',
+    alertSaveSuccess: '儲存成功！',
+    alertDeleteConfirm: '您確定要刪除此車型嗎？',
+    alertUploadSuccess: '成功導入資料！'
+  },
+  en: {
+    siteSubtitle: 'Motorcycle Price Calculator',
+    heroTitle: 'Motorcycle Price Lookup',
+    heroDesc: 'Check new motorcycle pricing, insurance & road tax, or estimate used bike value and calculate loans.',
+    tabNew: 'New Pricing',
+    tabUsed: 'Used Valuation',
+    tabLoan: 'Loan Calculator',
+    tabAdmin: 'Admin',
+    newInputTitle: 'New Motorcycle',
+    newInputDesc: 'Select a model to view full pricing',
+    labelBrand: 'Brand',
+    labelModel: 'Model',
+    labelInsurance: 'Insurance Type',
+    labelExtras: 'Extra Fees',
+    extraPlate: 'Booking Motor Plate Number',
+    extraRunner: 'Runner Fee for Bidding Plate',
+    phSelect: '— Select —',
+    phSelectBrandFirst: '— Select brand first —',
+    ins1st: 'First Party Insurance',
+    ins3rd: 'Third Party Insurance',
+    btnCalcNew: 'Get Pricing',
+    newResultTitle: 'New Motorcycle Pricing',
+    newResultDesc: 'Estimated results for reference only',
+    selectedModel: 'Selected Model',
+    insType: 'Insurance Type',
+    thItem: 'Item',
+    thAmount: 'Amount (RM)',
+    rowMSRP: 'MSRP (Retail Price)',
+    rowInsurance: 'Estimated Insurance',
+    rowRoadTax: 'Road Tax',
+    rowOTR: 'On-The-Road Price (OTR)',
+    usedInputTitle: 'Used Valuation',
+    usedInputDesc: 'Enter vehicle details for valuation',
+    labelYear: 'Year of Manufacture',
+    labelMileage: 'Mileage (km)',
+    labelCondition: 'Condition',
+    labelTxType: 'Transaction Type',
+    condExcellent: 'Excellent',
+    condGood: 'Good',
+    condFair: 'Fair',
+    condPoor: 'Needs Repair',
+    txBuy: 'Buy',
+    txSell: 'Sell',
+    btnCalcUsed: 'Calculate',
+    usedResultTitle: 'Used Motorcycle Result',
+    usedResultDesc: 'Assessment based on condition & market data',
+    thEvalItem: 'Item',
+    thBasePrice: 'Base Market Price',
+    thDiscount: 'Condition Adj.',
+    thFinalRange: 'Price Range',
+    evalAge: 'Age Depreciation',
+    evalMileage: 'Mileage Depreciation',
+    evalCondition: 'Condition Assessment',
+    evalFinal: 'Final Suggested Price',
+    disclaimer: 'Prices shown are estimates. Please consult the dealer for actual pricing.',
+    footerText: 'Internal Prototype v3.0',
+    alertBrand: 'Please select a brand.',
+    alertModel: 'Please select a model.',
+    alertFill: 'Please fill in all fields.',
+    rangeLabel: 'Low / High',
+    loanInputTitle: 'Loan Estimator',
+    loanInputDesc: 'Enter loan details to estimate your monthly instalment',
+    labelLoanAmount: 'Loan Amount',
+    labelTenure: 'Tenure',
+    labelInterestRate: 'Monthly Interest Rate (Flat)',
+    btnCalcLoan: 'Calculate Loan',
+    loanResultTitle: 'Loan Valuation Result',
+    loanResultDesc: 'Estimated monthly instalment and total interest cost',
+    rowMonthlyInstalment: 'Monthly Instalment',
+    rowLoanAmount: 'Loan Amount (Principal)',
+    rowTotalInterest: 'Total Interest',
+    rowTotalRepayment: 'Total Repayment',
+    applyNewOTR: 'Apply New OTR Price',
+    applyUsedVal: 'Apply Used Value',
+    noValuesToApply: 'No calculation results available',
+    yearsSuffix: 'Years',
+    btnCalcLoanQuick: 'Calculate Loan for This',
+    loginTitle: 'Sales Portal Login',
+    loginDesc: 'Please enter credentials to access the pricing calculator',
+    email: 'User ID',
+    password: 'Password',
+    btnSignIn: 'Sign In',
+    btnDemoMode: 'Offline Demo Mode',
+    btnSaveSettings: 'Save Settings',
+    dbSettingsTitle: 'Firebase Settings',
+    dbSettingsDesc: 'Setup database parameters to connect to cloud database and enable auth.',
+    labelDbUrl: 'Firebase Config JSON / JS',
+    phLoginEmail: 'e.g. weeky or sales1',
+    phFirebaseConfig: 'Paste Firebase SDK configuration snippet here, e.g.:\nconst firebaseConfig = {\n  apiKey: "...",\n  projectId: "..."\n};',
+    btnSignOut: 'Sign Out',
+    connectionStatus: 'Connection',
+    statusConnected: 'Firebase Connected',
+    statusOffline: 'Offline Demo Mode',
+    btnAdminAdd: 'Add Model',
+    btnAdminImport: 'Import CSV',
+    dragDropCsv: 'Drag & drop CSV file here or click to upload',
+    searchPlaceholder: 'Search brand or model...',
+    actions: 'Actions',
+    btnEdit: 'Edit',
+    btnDelete: 'Delete',
+    btnCancel: 'Cancel',
+    btnSave: 'Save',
+    alertDbSaved: 'Firebase configuration saved and page reloaded!',
+    alertLoginFailed: 'Login failed. Please check your credentials or database settings.',
+    alertSaveSuccess: 'Saved successfully!',
+    alertDeleteConfirm: 'Are you sure you want to delete this model?',
+    alertUploadSuccess: 'Data imported successfully!'
+  },
+  ms: {
+    siteSubtitle: 'Kalkulator Harga Motosikal',
+    heroTitle: 'Semakan Harga Motosikal',
+    heroDesc: 'Semak harga motosikal baru, insurans & cukai jalan, atau anggar nilai motosikal terpakai.',
+    tabNew: 'Harga Baru',
+    tabUsed: 'Penilaian Terpakai',
+    tabLoan: 'Kalkulator Pinjaman',
+    tabAdmin: 'Admin',
+    newInputTitle: 'Motosikal Baru',
+    newInputDesc: 'Pilih model untuk harga penuh',
+    labelBrand: 'Jenama',
+    labelModel: 'Model',
+    labelInsurance: 'Jenis Insurans',
+    labelExtras: 'Yuran Tambahan',
+    extraPlate: 'Yuran Tempahan Nombor Plat',
+    extraRunner: 'Yuran Runner Bidaan Plat',
+    phSelect: '— Sila Pilih —',
+    phSelectBrandFirst: '— Pilih jenama dahulu —',
+    ins1st: 'Insurans Pihak Pertama',
+    ins3rd: 'Insurans Pihak Ketiga',
+    btnCalcNew: 'Dapatkan Harga',
+    newResultTitle: 'Harga Motosikal Baru',
+    newResultDesc: 'Anggaran untuk rujukan sahaja',
+    selectedModel: 'Model Dipilih',
+    insType: 'Jenis Insurans',
+    thItem: 'Perkara',
+    thAmount: 'Jumlah (RM)',
+    rowMSRP: 'Harga Runcit (MSRP)',
+    rowInsurance: 'Anggaran Insurans',
+    rowRoadTax: 'Cukai Jalan',
+    rowOTR: 'Harga Atas Jalan (OTR)',
+    usedInputTitle: 'Penilaian Terpakai',
+    usedInputDesc: 'Masukkan maklumat kenderaan untuk penilaian',
+    labelYear: 'Tahun Pembuatan',
+    labelMileage: 'Jarak Tempuh (km)',
+    labelCondition: 'Keadaan',
+    labelTxType: 'Jenis Transaksi',
+    condExcellent: 'Cemerlang',
+    condGood: 'Baik',
+    condFair: 'Sederhana',
+    condPoor: 'Perlu Pembaikan',
+    txBuy: 'Beli',
+    txSell: 'Jual',
+    btnCalcUsed: 'Kira Harga',
+    usedResultTitle: 'Keputusan Penilaian',
+    usedResultDesc: 'Penilaian berdasarkan keadaan & pasaran',
+    thEvalItem: 'Item',
+    thBasePrice: 'Harga Asas',
+    thDiscount: 'Pelarasan',
+    thFinalRange: 'Julat Harga',
+    evalAge: 'Susut Nilai Umur',
+    evalMileage: 'Susut Nilai Jarak',
+    evalCondition: 'Penilaian Keadaan',
+    evalFinal: 'Harga Cadangan Akhir',
+    disclaimer: 'Harga adalah anggaran. Sila hubungi peniaga untuk harga sebenar.',
+    footerText: 'Prototaip Dalaman v3.0',
+    alertBrand: 'Sila pilih jenama.',
+    alertModel: 'Sila pilih model.',
+    alertFill: 'Sila isi semua ruangan.',
+    rangeLabel: 'Rendah / Tinggi',
+    loanInputTitle: 'Anggaran Pinjaman',
+    loanInputDesc: 'Masukkan maklumat pinjaman untuk anggaran ansuran bulanan',
+    labelLoanAmount: 'Jumlah Pinjaman',
+    labelTenure: 'Tempoh Pinjaman',
+    labelInterestRate: 'Kadar Faedah Bulanan (Flat Rate)',
+    btnCalcPinjaman: 'Kira Pinjaman',
+    loanResultTitle: 'Keputusan Anggaran Pinjaman',
+    loanResultDesc: 'Anggaran ansuran bulanan dan jumlah kos faedah',
+    rowMonthlyInstalment: 'Ansuran Bulanan',
+    rowLoanAmount: 'Jumlah Pinjaman (Prinsipal)',
+    rowTotalInterest: 'Jumlah Faedah',
+    rowTotalRepayment: 'Jumlah Bayaran Balik',
+    applyNewOTR: 'Gunakan Harga OTR Baru',
+    applyUsedVal: 'Gunakan Harga Terpakai',
+    noValuesToApply: 'Tiada anggaran harga tersedia',
+    yearsSuffix: 'Tahun',
+    btnCalcLoanQuick: 'Kira Pinjaman untuk ini',
+    loginTitle: 'Log Masuk Jualan',
+    loginDesc: 'Sila masukkan ID dan kata laluan untuk mengakses kalkulator',
+    email: 'ID Pengguna',
+    password: 'Kata Laluan',
+    btnSignIn: 'Log Masuk',
+    btnDemoMode: 'Mod Demo Luar Talian',
+    btnSaveSettings: 'Simpan Tetapan',
+    dbSettingsTitle: 'Tetapan Firebase',
+    dbSettingsDesc: 'Sediakan parameter projek untuk menyambung pangkalan data dan mengaktifkan log masuk.',
+    labelDbUrl: 'Firebase Config JSON / JS',
+    phLoginEmail: 'contoh: weeky atau sales1',
+    phFirebaseConfig: 'Tampal kod konfigurasi Firebase SDK di sini, contoh:\nconst firebaseConfig = {\n  apiKey: "...",\n  projectId: "..."\n};',
+    btnSignOut: 'Log Keluar',
+    connectionStatus: 'Sambungan',
+    statusConnected: 'Firebase Disambung',
+    statusOffline: 'Mod Demo Luar Talian',
+    btnAdminAdd: 'Tambah Model Baru',
+    btnAdminImport: 'Import CSV Pukal',
+    dragDropCsv: 'Seret & lepas fail CSV di sini atau klik untuk muat naik',
+    searchPlaceholder: 'Cari jenama atau model...',
+    actions: 'Tindakan',
+    btnEdit: 'Edit',
+    btnDelete: 'Padam',
+    btnCancel: 'Batal',
+    btnSave: 'Simpan',
+    alertDbSaved: 'Tetapan Firebase disimpan dan dimuat semula!',
+    alertLoginFailed: 'Log masuk gagal. Sila semak kelayakan anda atau tetapan pangkalan data.',
+    alertSaveSuccess: 'Berjaya disimpan!',
+    alertDeleteConfirm: 'Adakah anda pasti mahu memadam model ini?',
+    alertUploadSuccess: 'Data berjaya diimport!'
+  }
+};
+
+// ================================================================
+// MOCK DATA FALLBACK
 // ================================================================
 const MOCK_DATA = [
-  { brand:'SM SPORT', model:'SM SPORT 110E', msrp:4049, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SM SPORT', model:'SM SPORT 110R', msrp:4199, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'ADXTG 400', msrp:29888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'HUSKY 150', msrp:10298, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'HUSKY 150 SE', msrp:10598, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'NAGA 155', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'VFE185i', msrp:9988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'SYM', model:'CRUISYM 400', msrp:27888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'BENELLI', model:'PANAREA 125', msrp:6988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'AX2005', msrp:7988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'ATX250', msrp:12388, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'ATX250X', msrp:13988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRF 15', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRK250S', msrp:9888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRK250R', msrp:9988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'LTR 150 (N1)', msrp:8988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'E-LTR (EV)', msrp:7499, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRK250', msrp:14888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRK250RR', msrp:16888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRK250RD', msrp:21888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'SRV250 AMT', msrp:17888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'QJ MOTOR', model:'FORT 350', msrp:23888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'ARIIC', model:'318GT', msrp:22888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'BENDA', model:'NAPOLEON BOB 250', msrp:20888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'MORBIDELLI', model:'F252', msrp:14888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'MORBIDELLI', model:'T252X', msrp:16888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'RKR 250', msrp:13888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'250CL-X', msrp:16888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'CAFÉ RACER 152', msrp:6888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'K-LIGHT 202', msrp:9088, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'SIXTIES 250', msrp:13888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KEEWAY', model:'XDV180 EVO', msrp:9388, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'CFMOTO', model:'PAPIO RACER 125', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'CFMOTO', model:'250 DUAL LITE', msrp:9888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'CFMOTO', model:'250NK LITE', msrp:9888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'CFMOTO', model:'250SR LITE', msrp:9988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KAMAX', model:'SUPER PRO 125', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KAMAX', model:'SUPER PRO 125 SE', msrp:9188, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'KTNS', model:'TT CLASSIC 150', msrp:6888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'VOGE', model:'FORMICA ROSSA 150', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'VOGE', model:'SR3', msrp:15888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'BRIXTON', model:'CROSSFIRE XS', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'CUB CLASSIC(N1)', msrp:4688, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'CRUISER AMT 125', msrp:5988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'EZ125i', msrp:4588, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'GEMMA 125', msrp:6988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'NEXY+180', msrp:8988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'SM125i', msrp:5888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'XTREME 150i (N1)', msrp:10988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'XTREME 150i SE (N1)', msrp:11288, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'ISLAND 150', msrp:6688, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'NX150S', msrp:6688, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'HAWK 200', msrp:7888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'RT1', msrp:9888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'RT2', msrp:16888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'WMOTO', model:'ES250i(N1)', msrp:14508, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'YADEA', model:'GT20', msrp:5498, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'YADEA', model:'RS20(ORIS)', msrp:5498, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'YADEA', model:'VELAX', msrp:7799, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'ZEEHO', model:'AE4', msrp:7499, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'ZEEHO', model:'AE8S+', msrp:19388, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'EZI', model:'TS1', msrp:4788, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
-  { brand:'EZI', model:'RAY-01', msrp:4688, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '1', brand:'SYM', model:'HUSKY 150', msrp:10298, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '2', brand:'SYM', model:'HUSKY 150 SE', msrp:10598, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '3', brand:'SYM', model:'NAGA 155', msrp:8888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '4', brand:'SYM', model:'VFE185i', msrp:9988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '5', brand:'SYM', model:'ADXTG 400', msrp:29888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '6', brand:'SM SPORT', model:'SM SPORT 110E', msrp:4049, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '7', brand:'SM SPORT', model:'SM SPORT 110R', msrp:4199, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '8', brand:'QJ MOTOR', model:'SRK250S', msrp:9888, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 },
+  { id: '9', brand:'QJ MOTOR', model:'LTR 150 (N1)', msrp:8988, ins1st:300, ins3rd:195, roadTax:50, plateBooking:380, runnerFee:500 }
 ];
 
 // ================================================================
-// CSV PARSER
+// SYSTEM INITIALIZATION
 // ================================================================
-function parseCSVLine(line) {
-  const result = []; let cur = ''; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-    else cur += c;
-  }
-  result.push(cur.trim());
-  return result;
-}
+document.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+});
 
-function parseRMValue(val) {
-  if (typeof val === 'number') return val;
-  if (!val) return 0;
-  return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-}
-
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return null;
-  const headers = parseCSVLine(lines[0]);
-  const data = [];
-  for (let i = 1; i < lines.length; i++) {
-    const vals = parseCSVLine(lines[i]);
-    if (vals.length < 6) continue;
-    data.push({
-      brand: vals[0] || '',
-      model: vals[1] || '',
-      msrp: parseRMValue(vals[2]),
-      ins1st: parseRMValue(vals[3]),
-      ins3rd: parseRMValue(vals[4]),
-      roadTax: parseRMValue(vals[5]),
-      plateBooking: parseRMValue(vals[6]),
-      runnerFee: parseRMValue(vals[7]),
-    });
-  }
-  return data.length > 0 ? data : null;
-}
-
-async function loadData() {
+// Robust Parser to extract properties from regular JS code block OR valid JSON
+function parseFirebaseConfig(input) {
   try {
-    const res = await fetch(CSV_URL);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    const parsed = parseCSV(text);
-    if (parsed && parsed.length > 0) {
-      motorcycleData = parsed;
-      dataSource = 'csv';
-      console.log(`✅ CSV loaded: ${parsed.length} records`);
-    } else throw new Error('Empty CSV');
+    return JSON.parse(input);
   } catch (e) {
-    console.warn('⚠ CSV fetch failed, using mock data:', e.message);
-    motorcycleData = MOCK_DATA;
-    dataSource = 'mock';
+    const config = {};
+    const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+    keys.forEach(k => {
+      const regex = new RegExp(`${k}\\s*:\\s*["']([^"']+)["']`);
+      const match = input.match(regex);
+      if (match && match[1]) {
+        config[k] = match[1];
+      }
+    });
+    if (config.apiKey && config.projectId) {
+      return config;
+    }
+    return null;
   }
-  // Build brand → models map
+}
+
+function initFirebase() {
+  const badgeWarning = document.getElementById('dbWarningBadge');
+  
+  if (firebaseConfigStr) {
+    try {
+      const config = parseFirebaseConfig(firebaseConfigStr);
+      if (config) {
+        firebaseApp = firebase.initializeApp(config);
+        db = firebase.firestore();
+        badgeWarning.classList.add('hidden');
+        
+        // Trigger session check directly (using custom Firestore auth mapping)
+        checkUserSession();
+      } else {
+        throw new Error("Invalid configuration structure");
+      }
+    } catch (e) {
+      console.error("Firebase init error:", e);
+      firebaseApp = null;
+      db = null;
+      badgeWarning.classList.remove('hidden');
+      showLoginOverlay();
+    }
+  } else {
+    badgeWarning.classList.remove('hidden');
+    showLoginOverlay();
+  }
+}
+
+// Check user session from local storage on reload
+function checkUserSession() {
+  const saved = localStorage.getItem('loggedInUser');
+  if (saved) {
+    try {
+      const user = JSON.parse(saved);
+      isLoggedIn = true;
+      isDemoMode = false;
+      hideLoginOverlay();
+      updateTabsVisibility(user.role === 'admin');
+      loadData();
+    } catch (e) {
+      showLoginOverlay();
+    }
+  } else {
+    showLoginOverlay();
+  }
+}
+
+// ================================================================
+// CUSTOM FIRESTORE DATABASE-DRIVEN AUTHENTICATION (PURE ID LOGINS)
+// ================================================================
+async function handleLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const t = i18n[currentLang];
+
+  if (!db) {
+    alert("請先設定您的 Firebase Config！");
+    return;
+  }
+
+  const btn = document.getElementById('loginSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    // Look up ID document directly in 'users' collection in Firestore
+    const userDoc = await db.collection('users').doc(username).get();
+    
+    if (!userDoc.exists) {
+      alert("此使用者 ID 不存在！");
+      return;
+    }
+    
+    const userData = userDoc.data();
+    if (userData.password !== pass) {
+      alert("密碼錯誤，請重新輸入。");
+      return;
+    }
+    
+    // Login Successful
+    isLoggedIn = true;
+    isDemoMode = false;
+    const userObj = {
+      username: username,
+      role: userData.role || 'sales'
+    };
+    
+    localStorage.setItem('loggedInUser', JSON.stringify(userObj));
+    hideLoginOverlay();
+    updateTabsVisibility(userObj.role === 'admin');
+    
+    loadData();
+  } catch (err) {
+    alert("登入驗證錯誤:\n請確保您已在 Firebase Console 中建立名為 'users' 的資料集合 (Collection) 且欄位正確。\n\n詳細錯誤: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t.btnSignIn;
+  }
+}
+
+function handleLogout() {
+  isLoggedIn = false;
+  isDemoMode = false;
+  localStorage.removeItem('loggedInUser');
+  showLoginOverlay();
+}
+
+// Show/Hide overlays
+function showLoginOverlay() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('headerLogoutBtn').classList.add('hidden');
+}
+
+function hideLoginOverlay() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('headerLogoutBtn').classList.remove('hidden');
+}
+
+// Bypasses database logic for sandboxed testing
+function enterDemoMode() {
+  isDemoMode = true;
+  isLoggedIn = false;
+  hideLoginOverlay();
+  updateTabsVisibility(true); // Always display Admin tab in Demo mode
+  loadData();
+}
+
+// Show/Hide Admin Tab
+function updateTabsVisibility(isAdmin) {
+  const tabBtn = document.getElementById('tabAdmin');
+  if (isAdmin || isDemoMode) {
+    tabBtn.classList.remove('hidden');
+  } else {
+    tabBtn.classList.add('hidden');
+    
+    // Switch away if on Admin
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab && activeTab.id === 'tabAdmin') {
+      switchTab('new');
+    }
+  }
+}
+
+// ================================================================
+// DATA SYNCHRONIZATION (Firestore)
+// ================================================================
+async function loadData() {
+  const badgeConnection = document.getElementById('headerConnectionState');
+  const t = i18n[currentLang];
+  
+  if (db && !isDemoMode) {
+    try {
+      const snapshot = await db.collection('motorcycles').orderBy('brand', 'asc').get();
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      
+      motorcycleData = list;
+      dataSource = 'firebase';
+      badgeConnection.textContent = t.statusConnected;
+      badgeConnection.className = "text-emerald-600 font-bold";
+    } catch (err) {
+      console.warn("Failed to fetch from Firestore, using mock data:", err.message);
+      motorcycleData = MOCK_DATA;
+      dataSource = 'mock';
+      badgeConnection.textContent = t.statusOffline;
+      badgeConnection.className = "text-amber-600 font-bold";
+    }
+  } else {
+    motorcycleData = motorcycleData.length > 0 ? motorcycleData : JSON.parse(JSON.stringify(MOCK_DATA));
+    dataSource = 'mock';
+    badgeConnection.textContent = t.statusOffline;
+    badgeConnection.className = "text-amber-600 font-bold";
+  }
+
+  // Build brand maps
   brandMap = {};
   motorcycleData.forEach(d => {
+    if (!d.brand) return;
     if (!brandMap[d.brand]) brandMap[d.brand] = [];
-    if (!brandMap[d.brand].includes(d.model)) brandMap[d.brand].push(d.model);
+    if (d.model && !brandMap[d.brand].includes(d.model)) brandMap[d.brand].push(d.model);
   });
-  // Sort brands alphabetically
+
+  // Sort
   const sorted = {};
-  Object.keys(brandMap).sort().forEach(k => sorted[k] = brandMap[k].sort());
+  Object.keys(brandMap).sort().forEach(k => {
+    sorted[k] = brandMap[k].sort();
+  });
   brandMap = sorted;
 
   updateDataBadge();
   populateBrands('new');
   populateBrands('used');
+  updateLoanButtonsState();
+  renderAdminTable();
 }
 
 function updateDataBadge() {
   const badge = document.getElementById('dataSrcBadge');
-  if (dataSource === 'csv') {
-    badge.textContent = '📡 CSV';
+  if (dataSource === 'firebase') {
+    badge.textContent = '📡 Firebase';
     badge.className = 'src-badge csv';
   } else {
     badge.textContent = '⚡ Mock';
@@ -790,7 +1558,32 @@ function updateDataBadge() {
 }
 
 // ================================================================
-// POPULATE DROPDOWNS
+// SETTINGS CONFIGURATOR
+// ================================================================
+function openSettingsModal() {
+  document.getElementById('settingFirebaseConfig').value = localStorage.getItem('fbConfig') || DEFAULT_FIREBASE_CONFIG;
+  document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').classList.add('hidden');
+}
+
+function saveDatabaseSettings(e) {
+  e.preventDefault();
+  const configInput = document.getElementById('settingFirebaseConfig').value.trim();
+  const t = i18n[currentLang];
+
+  localStorage.setItem('fbConfig', configInput);
+  firebaseConfigStr = configInput;
+
+  alert(t.alertDbSaved);
+  closeSettingsModal();
+  window.location.reload();
+}
+
+// ================================================================
+// DROPDOWNS POPULATE
 // ================================================================
 function populateBrands(section) {
   const sel = document.getElementById(section + 'Brand');
@@ -799,7 +1592,7 @@ function populateBrands(section) {
   Object.keys(brandMap).forEach(brand => {
     sel.innerHTML += `<option value="${brand}">${brand}</option>`;
   });
-  // Reset model
+
   const modelSel = document.getElementById(section + 'Model');
   modelSel.innerHTML = `<option value="">${t.phSelectBrandFirst}</option>`;
   modelSel.disabled = true;
@@ -816,97 +1609,115 @@ function onBrandChange(section) {
   }
   const models = brandMap[brand] || [];
   modelSel.innerHTML = `<option value="">${t.phSelect}</option>`;
-  models.forEach(m => { modelSel.innerHTML += `<option value="${m}">${m}</option>`; });
+  models.forEach(m => {
+    modelSel.innerHTML += `<option value="${m}">${m}</option>`;
+  });
   modelSel.disabled = false;
 }
 
 // ================================================================
-// LANGUAGE SWITCHING
+// TAB SWITCH
+// ================================================================
+function switchTab(tab) {
+  const tabs = ['new', 'used', 'loan', 'admin'];
+  tabs.forEach(t => {
+    const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (t === tab) {
+      btn.classList.add('active');
+      btn.classList.remove('text-slate-600');
+      panel.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+      btn.classList.add('text-slate-600');
+      panel.classList.remove('active');
+    }
+  });
+}
+
+// ================================================================
+// LANGUAGE SWITCH
 // ================================================================
 function switchLang(lang) {
   currentLang = lang;
   document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === lang);
-    if (b.dataset.lang !== lang) b.classList.add('text-slate-500');
-    else b.classList.remove('text-slate-500');
+    if (b.dataset.lang !== lang) b.classList.add('text-slate-600');
+    else b.classList.remove('text-slate-600');
   });
+
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    if (i18n[lang]?.[key]) el.textContent = i18n[lang][key];
-  });
-  document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang === 'ms' ? 'ms' : 'en';
-  // Re-populate brand dropdowns with updated placeholder text
-  ['new','used'].forEach(s => {
-    const brand = document.getElementById(s+'Brand').value;
-    populateBrands(s);
-    if (brand) {
-      document.getElementById(s+'Brand').value = brand;
-      onBrandChange(s);
+    if (i18n[lang]?.[key]) {
+      el.textContent = i18n[lang][key];
     }
   });
-  // Re-populate condition dropdown
+  
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (i18n[lang]?.[key]) {
+      el.placeholder = i18n[lang][key];
+    }
+  });
+
+  document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang === 'ms' ? 'ms' : 'en';
+
+  // Re-pop brands
+  ['new', 'used'].forEach(s => {
+    const brand = document.getElementById(s + 'Brand').value;
+    const model = document.getElementById(s + 'Model').value;
+    populateBrands(s);
+    if (brand) {
+      document.getElementById(s + 'Brand').value = brand;
+      onBrandChange(s);
+      if (model) {
+        document.getElementById(s + 'Model').value = model;
+      }
+    }
+  });
+
+  // Re-translate conditions list
   const condSel = document.getElementById('usedCondition');
-  const condVal = condSel.value;
   const t = i18n[lang];
   condSel.querySelectorAll('option').forEach(opt => {
-    const k = opt.dataset.i18n;
-    if (k && t[k]) opt.textContent = t[k];
+    const rawK = opt.getAttribute('data-raw-key');
+    if (rawK && t[rawK]) {
+      opt.textContent = t[rawK];
+    }
   });
-  // Re-populate insurance dropdown
+
   const insSel = document.getElementById('newInsurance');
   insSel.querySelectorAll('option').forEach(opt => {
     const k = opt.dataset.i18n;
     if (k && t[k]) opt.textContent = t[k];
   });
+
+  updateLoanButtonsState();
+  if (lastNewCalc) renderNewResults();
+  onLoanInputChange();
 }
 
-// ================================================================
-// TAB SWITCHING
-// ================================================================
-function switchTab(tab) {
-  const tabNew = document.getElementById('tabNew');
-  const tabUsed = document.getElementById('tabUsed');
-  const panelNew = document.getElementById('panelNew');
-  const panelUsed = document.getElementById('panelUsed');
-  if (tab === 'new') {
-    tabNew.classList.add('active'); tabNew.classList.remove('text-slate-500');
-    tabUsed.classList.remove('active'); tabUsed.classList.add('text-slate-500');
-    panelNew.classList.add('active'); panelUsed.classList.remove('active');
-  } else {
-    tabUsed.classList.add('active'); tabUsed.classList.remove('text-slate-500');
-    tabNew.classList.remove('active'); tabNew.classList.add('text-slate-500');
-    panelUsed.classList.add('active'); panelNew.classList.remove('active');
-  }
-}
-
-// ================================================================
-// TRANSACTION TYPE (Used)
-// ================================================================
 function selectTxType(type) {
   currentTxType = type;
   const rB = document.getElementById('radioBuy');
   const rS = document.getElementById('radioSell');
   if (type === 'buy') {
-    rB.classList.add('selected'); rB.classList.remove('text-slate-500');
-    rS.classList.remove('selected'); rS.classList.add('text-slate-500');
+    rB.classList.add('selected');
+    rB.classList.remove('text-slate-500');
+    rS.classList.remove('selected');
+    rS.classList.add('text-slate-500');
   } else {
-    rS.classList.add('selected'); rS.classList.remove('text-slate-500');
-    rB.classList.remove('selected'); rB.classList.add('text-slate-500');
+    rS.classList.add('selected');
+    rS.classList.remove('text-slate-500');
+    rB.classList.remove('selected');
+    rB.classList.add('text-slate-500');
   }
+  calcUsed();
 }
 
 // ================================================================
-// FORMAT
+// CALCULATIONS
 // ================================================================
-function fmt(n) { return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-
-// ================================================================
-// NEW MOTORCYCLE CALC
-// ================================================================
-function findMoto(brand, model) {
-  return motorcycleData.find(d => d.brand === brand && d.model === model);
-}
-
 function calcNew() {
   const t = i18n[currentLang];
   const brand = document.getElementById('newBrand').value;
@@ -929,41 +1740,51 @@ function renderNewResults() {
   const chkPlate = document.getElementById('chkPlate').checked;
   const chkRunner = document.getElementById('chkRunner').checked;
 
-  const insurance = insType === '1st' ? moto.ins1st : moto.ins3rd;
-  const plateVal = chkPlate ? moto.plateBooking : 0;
-  const runnerVal = chkRunner ? moto.runnerFee : 0;
-  const otr = moto.msrp + insurance + moto.roadTax + plateVal + runnerVal;
+  const insurance = insType === '1st' ? (moto.ins1st || 0) : (moto.ins3rd || 0);
+  const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
+  const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
+  const otr = (moto.msrp || 0) + insurance + (moto.roadTax || 0) + plateVal + runnerVal;
 
-  // Show info bar
+  lastNewOTRVal = otr;
+
+  // Render HTML
   const info = document.getElementById('newSelectedInfo');
   info.classList.remove('hidden');
   document.getElementById('newSelectedName').textContent = `${moto.brand} ${moto.model}`;
   document.getElementById('newSelectedIns').textContent = insType === '1st' ? t.ins1st : t.ins3rd;
 
-  // Values
-  document.getElementById('valMSRP').textContent = fmt(moto.msrp);
+  document.getElementById('valMSRP').textContent = fmt(moto.msrp || 0);
   document.getElementById('valInsurance').textContent = fmt(insurance);
-  document.getElementById('valRoadTax').textContent = fmt(moto.roadTax);
+  document.getElementById('valRoadTax').textContent = fmt(moto.roadTax || 0);
 
-  // Plate row
   const rowPlate = document.getElementById('rowPlate');
   const valPlate = document.getElementById('valPlate');
-  if (chkPlate) { rowPlate.classList.remove('dimmed'); valPlate.textContent = fmt(moto.plateBooking); }
-  else { rowPlate.classList.add('dimmed'); valPlate.textContent = '—'; }
+  if (chkPlate) {
+    rowPlate.classList.remove('dimmed');
+    valPlate.textContent = fmt(moto.plateBooking || 0);
+  } else {
+    rowPlate.classList.add('dimmed');
+    valPlate.textContent = '—';
+  }
 
-  // Runner row
   const rowRunner = document.getElementById('rowRunner');
   const valRunner = document.getElementById('valRunner');
-  if (chkRunner) { rowRunner.classList.remove('dimmed'); valRunner.textContent = fmt(moto.runnerFee); }
-  else { rowRunner.classList.add('dimmed'); valRunner.textContent = '—'; }
+  if (chkRunner) {
+    rowRunner.classList.remove('dimmed');
+    valRunner.textContent = fmt(moto.runnerFee || 0);
+  } else {
+    rowRunner.classList.add('dimmed');
+    valRunner.textContent = '—';
+  }
 
-  // OTR
   document.getElementById('valOTR').textContent = fmt(otr);
+  document.getElementById('newLoanAction').classList.remove('hidden');
+  updateLoanButtonsState();
 
-  // Animate rows
   document.querySelectorAll('#newResultBody tr').forEach((row, i) => {
-    row.style.animation = 'none'; row.offsetHeight;
-    row.style.animation = `fadeUp 0.35s ease ${i * 0.06}s forwards`;
+    row.style.animation = 'none';
+    row.offsetHeight;
+    row.style.animation = `fadeUp 0.25s ease ${i * 0.04}s forwards`;
     row.style.opacity = '0';
   });
 }
@@ -972,52 +1793,49 @@ function onNewInputChange() {
   if (lastNewCalc) renderNewResults();
 }
 
-// ================================================================
-// USED MOTORCYCLE CALC
-// ================================================================
-const condFactors = {
-  excellent: { rate: 1.00, pct: '0%' },
-  good:      { rate: 0.92, pct: '8%' },
-  fair:      { rate: 0.82, pct: '18%' },
-  poor:      { rate: 0.70, pct: '30%' },
-};
-
 function calcUsed() {
   const t = i18n[currentLang];
   const brand = document.getElementById('usedBrand').value;
   const model = document.getElementById('usedModel').value;
-  const year = parseInt(document.getElementById('usedYear').value);
-  const mileage = parseInt(document.getElementById('usedMileage').value);
+  const yearStr = document.getElementById('usedYear').value;
+  const mileageStr = document.getElementById('usedMileage').value;
   const cond = document.getElementById('usedCondition').value;
 
-  if (!brand || !model || !year || !mileage || !cond) { alert(t.alertFill); return; }
+  if (!brand || !model || !yearStr || !mileageStr || !cond) {
+    if (arguments.length === 0 && window.event && window.event.type === 'click') {
+      alert(t.alertFill);
+    }
+    return;
+  }
+
+  const year = parseInt(yearStr);
+  const mileage = parseInt(mileageStr);
 
   const moto = findMoto(brand, model);
   const basePrice = moto ? moto.msrp : 10000;
   const age = Math.max(0, 2026 - year);
 
-  // Age dep: ~5%/yr, max 60%
+  // Depreciation
   const ageRate = Math.min(age * 0.05, 0.60);
   const ageDep = Math.round(basePrice * ageRate);
   const afterAge = basePrice - ageDep;
 
-  // Mileage dep: RM 0.02/km
   const mileDep = Math.round(mileage * 0.02);
   const afterMile = Math.max(afterAge - mileDep, basePrice * 0.2);
 
-  // Condition
   const cf = condFactors[cond];
   const condDep = Math.round(afterMile * (1 - cf.rate));
   const afterCond = afterMile - condDep;
 
-  // Buy/Sell margin
   const margin = currentTxType === 'buy' ? 1.0 : 0.88;
   const finalBase = Math.round(afterCond * margin);
   const low = Math.round(finalBase * 0.92);
   const high = Math.round(finalBase * 1.08);
 
+  lastUsedVal = finalBase;
+
   document.getElementById('uBaseAge').textContent = fmt(basePrice);
-  document.getElementById('uDiscAge').textContent = `-${(ageRate*100).toFixed(0)}%  (${fmt(ageDep)})`;
+  document.getElementById('uDiscAge').textContent = `-${(ageRate*100).toFixed(0)}% (${fmt(ageDep)})`;
   document.getElementById('uRangeAge').textContent = fmt(afterAge);
 
   document.getElementById('uBaseMile').textContent = fmt(afterAge);
@@ -1025,32 +1843,420 @@ function calcUsed() {
   document.getElementById('uRangeMile').textContent = fmt(afterMile);
 
   document.getElementById('uBaseCond').textContent = fmt(afterMile);
-  document.getElementById('uDiscCond').textContent = `-${cf.pct}  (${fmt(condDep)})`;
+  document.getElementById('uDiscCond').textContent = `-${cf.pct} (${fmt(condDep)})`;
   document.getElementById('uRangeCond').textContent = fmt(afterCond);
 
   document.getElementById('uBaseFinal').textContent = fmt(finalBase);
   document.getElementById('uDiscFinal').textContent = currentTxType === 'sell' ? '-12%' : '—';
   document.getElementById('uRangeFinal').innerHTML = `
     <div class="flex flex-col items-end gap-0.5">
-      <span class="text-[10px] text-slate-500">${t.rangeLabel}</span>
-      <span class="font-bold neon-text-blue">${fmt(low)}</span>
-      <span class="text-slate-600">~</span>
-      <span class="font-bold text-emerald-300">${fmt(high)}</span>
+      <span class="text-[9px] text-slate-400 font-bold uppercase">${t.rangeLabel}</span>
+      <span class="font-extrabold text-accent-blue">${fmt(low)}</span>
+      <span class="text-slate-300 text-xs">~</span>
+      <span class="font-extrabold text-emerald-600">${fmt(high)}</span>
     </div>`;
 
+  document.getElementById('usedLoanAction').classList.remove('hidden');
+  updateLoanButtonsState();
+
   document.querySelectorAll('#usedResultBody tr').forEach((row, i) => {
-    row.style.animation = 'none'; row.offsetHeight;
-    row.style.animation = `fadeUp 0.35s ease ${i * 0.06}s forwards`;
+    row.style.animation = 'none';
+    row.offsetHeight;
+    row.style.animation = `fadeUp 0.25s ease ${i * 0.04}s forwards`;
     row.style.opacity = '0';
   });
 }
 
 // ================================================================
-// INIT
+// CONSTANTS (Used Assess Depreciation)
 // ================================================================
-document.addEventListener('DOMContentLoaded', () => {
-  loadData();
-});
+const condFactors = {
+  excellent: { rate: 0.95, pct: '5%' },
+  good: { rate: 0.88, pct: '12%' },
+  fair: { rate: 0.78, pct: '22%' },
+  poor: { rate: 0.60, pct: '40%' }
+};
+
+// ================================================================
+// LOAN LOGIC & DISPLAY
+// ================================================================
+function updateLoanButtonsState() {
+  const t = i18n[currentLang];
+  const btnNew = document.getElementById('btnApplyNewOTR');
+  const btnUsed = document.getElementById('btnApplyUsedVal');
+
+  if (lastNewOTRVal > 0) {
+    btnNew.disabled = false;
+    btnNew.classList.remove('opacity-45', 'cursor-not-allowed');
+    btnNew.innerHTML = `<span>⚡</span> ${t.applyNewOTR} (${fmt(lastNewOTRVal)})`;
+  } else {
+    btnNew.disabled = true;
+    btnNew.classList.add('opacity-45', 'cursor-not-allowed');
+    btnNew.innerHTML = `<span>⚡</span> ${t.applyNewOTR}`;
+  }
+
+  if (lastUsedVal > 0) {
+    btnUsed.disabled = false;
+    btnUsed.classList.remove('opacity-45', 'cursor-not-allowed');
+    btnUsed.innerHTML = `<span>⚡</span> ${t.applyUsedVal} (${fmt(lastUsedVal)})`;
+  } else {
+    btnUsed.disabled = true;
+    btnUsed.classList.add('opacity-45', 'cursor-not-allowed');
+    btnUsed.innerHTML = `<span>⚡</span> ${t.applyUsedVal}`;
+  }
+
+  // Active styles for selectors (Solid fill)
+  document.querySelectorAll('#tenureButtonGroup button').forEach(btn => {
+    const val = parseInt(btn.getAttribute('data-val'));
+    if (val === loanTenure) {
+      btn.className = "btn-select-item py-2.5 text-xs font-black bg-accent-blue text-white border-2 border-accent-blue rounded-xl shadow-md transform scale-[1.02]";
+    } else {
+      btn.className = "btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all";
+    }
+  });
+
+  document.querySelectorAll('#rateButtonGroup button').forEach(btn => {
+    const val = parseFloat(btn.getAttribute('data-val'));
+    if (Math.abs(val - loanRate) < 0.001) {
+      btn.className = "btn-select-item py-2.5 text-xs font-black bg-accent-red text-white border-2 border-accent-red rounded-xl shadow-md transform scale-[1.02]";
+    } else {
+      btn.className = "btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all";
+    }
+  });
+}
+
+function setTenure(years) {
+  loanTenure = years;
+  updateLoanButtonsState();
+  calcLoan();
+}
+
+function setRate(rate) {
+  loanRate = rate;
+  updateLoanButtonsState();
+  calcLoan();
+}
+
+function applyToLoan(type) {
+  if (type === 'new' && lastNewOTRVal > 0) {
+    document.getElementById('loanAmount').value = lastNewOTRVal;
+  } else if (type === 'used' && lastUsedVal > 0) {
+    document.getElementById('loanAmount').value = lastUsedVal;
+  }
+  calcLoan();
+}
+
+function sendToLoanCalculator(type) {
+  applyToLoan(type);
+  switchTab('loan');
+}
+
+function onLoanInputChange() {
+  calcLoan();
+}
+
+function calcLoan() {
+  const amtStr = document.getElementById('loanAmount').value;
+  const principal = parseFloat(amtStr);
+
+  if (isNaN(principal) || principal <= 0) {
+    document.getElementById('valMonthlyInstalment').textContent = '—';
+    document.getElementById('valLoanPrincipal').textContent = '—';
+    document.getElementById('valLoanInterest').textContent = '—';
+    document.getElementById('valLoanRepay').textContent = '—';
+    return;
+  }
+
+  // Flat rate computation (Round up using Math.ceil)
+  const monthlyInterest = principal * (loanRate / 100);
+  const annualInterest = monthlyInterest * 12;
+  const totalInterest = annualInterest * loanTenure;
+  const totalRepayment = principal + totalInterest;
+  const monthlyInstalment = Math.ceil(totalRepayment / (loanTenure * 12));
+
+  // Render values
+  document.getElementById('valMonthlyInstalment').textContent = fmt(monthlyInstalment);
+  document.getElementById('valLoanPrincipal').textContent = fmt(principal);
+  document.getElementById('valLoanInterest').textContent = fmt(totalInterest);
+  document.getElementById('valLoanRepay').textContent = fmt(totalRepayment);
+}
+
+// ================================================================
+// ADMIN DASHBOARD CORE CONTROLS (Firestore CRUD)
+// ================================================================
+function renderAdminTable() {
+  const body = document.getElementById('adminTableBody');
+  const searchVal = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+  const t = i18n[currentLang];
+  
+  body.innerHTML = '';
+  
+  const filtered = motorcycleData.filter(d => {
+    return d.brand.toLowerCase().includes(searchVal) || d.model.toLowerCase().includes(searchVal);
+  });
+  
+  filtered.forEach(d => {
+    body.innerHTML += `
+      <tr class="res-row hover:bg-slate-50">
+        <td class="px-4 py-3 text-slate-800 font-medium">${d.brand}</td>
+        <td class="px-4 py-3 text-slate-800 font-semibold">${d.model}</td>
+        <td class="px-4 py-3 text-right font-bold text-slate-700">${fmt(d.msrp || 0)}</td>
+        <td class="px-4 py-3 text-right text-slate-600">${fmt(d.ins1st || 0)}</td>
+        <td class="px-4 py-3 text-right text-slate-600">${fmt(d.ins3rd || 0)}</td>
+        <td class="px-4 py-3 text-right text-slate-600">${fmt(d.roadTax || 0)}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="flex gap-2 justify-end">
+            <button onclick="openEditModal('${d.id || d.model}')" class="text-xs font-bold text-accent-blue hover:underline px-1.5 py-1">${t.btnEdit}</button>
+            <button onclick="deleteModel('${d.id || d.model}')" class="text-xs font-bold text-accent-red hover:underline px-1.5 py-1">${t.btnDelete}</button>
+          </div>
+        </td>
+      </tr>`;
+  });
+}
+
+// Open Editor Modal (Null = New Entry)
+function openEditModal(key) {
+  const modal = document.getElementById('editModal');
+  const form = document.getElementById('editForm');
+  const title = document.getElementById('modalTitle');
+  const t = i18n[currentLang];
+
+  form.reset();
+  
+  if (key) {
+    title.textContent = t.btnEdit;
+    const item = motorcycleData.find(d => d.id === key || d.model === key);
+    if (item) {
+      document.getElementById('editId').value = item.id || item.model;
+      document.getElementById('editBrand').value = item.brand;
+      document.getElementById('editModel').value = item.model;
+      document.getElementById('editModel').disabled = true; // prevent model renaming on key constraints
+      document.getElementById('editMSRP').value = item.msrp || 0;
+      document.getElementById('editRoadTax').value = item.roadTax || 0;
+      document.getElementById('editPlate').value = item.plateBooking || 0;
+      document.getElementById('editIns1st').value = item.ins1st || 0;
+      document.getElementById('editIns3rd').value = item.ins3rd || 0;
+      document.getElementById('editRunner').value = item.runnerFee || 0;
+    }
+  } else {
+    title.textContent = t.btnAdminAdd;
+    document.getElementById('editId').value = '';
+    document.getElementById('editModel').disabled = false;
+  }
+  
+  modal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.add('hidden');
+}
+
+// Database Writes (Firestore doc sets)
+async function saveModel(e) {
+  e.preventDefault();
+  const idVal = document.getElementById('editId').value;
+  const brand = document.getElementById('editBrand').value.trim();
+  const model = document.getElementById('editModel').value.trim();
+  const msrp = parseFloat(document.getElementById('editMSRP').value) || 0;
+  const roadTax = parseFloat(document.getElementById('editRoadTax').value) || 0;
+  const ins1st = parseFloat(document.getElementById('editIns1st').value) || 0;
+  const ins3rd = parseFloat(document.getElementById('editIns3rd').value) || 0;
+  const plate = parseFloat(document.getElementById('editPlate').value) || 0;
+  const runner = parseFloat(document.getElementById('editRunner').value) || 0;
+  
+  const t = i18n[currentLang];
+
+  const payload = {
+    brand: brand,
+    model: model,
+    msrp: msrp,
+    ins1st: ins1st,
+    ins3rd: ins3rd,
+    roadTax: roadTax,
+    plateBooking: plate,
+    runnerFee: runner
+  };
+
+  if (db && !isDemoMode) {
+    try {
+      if (idVal) {
+        await db.collection('motorcycles').doc(idVal).update(payload);
+      } else {
+        const docId = model.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        await db.collection('motorcycles').doc(docId).set(payload);
+      }
+      
+      alert(t.alertSaveSuccess);
+      closeEditModal();
+      loadData();
+    } catch (err) {
+      alert("儲存資料失敗: " + err.message);
+    }
+  } else {
+    // Local memory modification (Mock Mode)
+    if (idVal) {
+      const idx = motorcycleData.findIndex(d => d.id === idVal || d.model === idVal);
+      if (idx !== -1) {
+        payload.id = idVal;
+        motorcycleData[idx] = payload;
+      }
+    } else {
+      payload.id = 'M' + Date.now();
+      motorcycleData.push(payload);
+    }
+    
+    alert(t.alertSaveSuccess);
+    closeEditModal();
+    loadData();
+  }
+}
+
+async function deleteModel(key) {
+  const t = i18n[currentLang];
+  if (!confirm(t.alertDeleteConfirm)) return;
+
+  if (db && !isDemoMode) {
+    try {
+      await db.collection('motorcycles').doc(key).delete();
+      loadData();
+    } catch (err) {
+      alert("刪除資料失敗: " + err.message);
+    }
+  } else {
+    // Local delete
+    motorcycleData = motorcycleData.filter(d => d.id !== key && d.model !== key);
+    loadData();
+  }
+}
+
+// ================================================================
+// CSV PARSING & BATCH IMPORT (Firestore Batch commit)
+// ================================================================
+function handleCSVDrop(e) {
+  e.preventDefault();
+  document.getElementById('csvDropZone').classList.remove('bg-slate-100');
+  const file = e.dataTransfer.files[0];
+  processCSVFile(file);
+}
+
+function handleCSVUpload(e) {
+  const file = e.target.files[0];
+  processCSVFile(file);
+}
+
+function processCSVFile(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    alert("請上傳正確的 .csv 格式檔案！");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(evt) {
+    const text = evt.target.result;
+    const records = parseCSV(text);
+    const t = i18n[currentLang];
+
+    if (!records || records.length === 0) {
+      alert("CSV 內容為空或解析失敗，請確認欄位格式是否正確！");
+      return;
+    }
+
+    if (db && !isDemoMode) {
+      try {
+        const batch = db.batch();
+        records.forEach(rec => {
+          const docId = rec.model.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+          const docRef = db.collection('motorcycles').doc(docId);
+          batch.set(docRef, rec);
+        });
+        await batch.commit();
+        
+        alert(`${t.alertUploadSuccess} (${records.length} 筆資料已導入/覆蓋)`);
+        loadData();
+      } catch (err) {
+        alert("導入雲端資料庫失敗: " + err.message);
+      }
+    } else {
+      // Mock Mode: Upsert to local memory
+      records.forEach((newRec, i) => {
+        const idx = motorcycleData.findIndex(d => d.model.toLowerCase() === newRec.model.toLowerCase());
+        if (idx !== -1) {
+          newRec.id = motorcycleData[idx].id;
+          motorcycleData[idx] = newRec;
+        } else {
+          newRec.id = 'M_CSV_' + i + '_' + Date.now();
+          motorcycleData.push(newRec);
+        }
+      });
+      
+      alert(`${t.alertUploadSuccess} (${records.length} 筆資料已儲存至模擬記憶體)`);
+      loadData();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ================================================================
+// SYSTEM UTILITIES
+// ================================================================
+function findMoto(brand, model) {
+  return motorcycleData.find(d => d.brand === brand && d.model === model);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQ = !inQ;
+      }
+    } else if (c === ',' && !inQ) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseRMValue(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return null;
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseCSVLine(lines[i]);
+    if (vals.length < 6) continue;
+    data.push({
+      brand: vals[0] || '',
+      model: vals[1] || '',
+      msrp: parseRMValue(vals[2]),
+      ins1st: parseRMValue(vals[3]),
+      ins3rd: parseRMValue(vals[4]),
+      roadTax: parseRMValue(vals[5]),
+      plateBooking: parseRMValue(vals[6]),
+      runnerFee: parseRMValue(vals[7])
+    });
+  }
+  return data.length > 0 ? data : null;
+}
+
+function fmt(n) {
+  return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 </script>
 </body>
 </html>
