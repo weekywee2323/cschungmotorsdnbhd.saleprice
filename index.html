@@ -199,6 +199,11 @@
       background-repeat: no-repeat;
       background-size: 18px;
     }
+
+    @keyframes badgeSlideIn {
+      from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -340,6 +345,20 @@
               </button>
             </div>
 
+            <!-- Trade-In Applied Badge -->
+            <div id="tradeInBadge" class="hidden mb-4 px-4 py-3 rounded-xl border flex items-center justify-between gap-3 shadow-sm"
+              style="background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%); border-color: #6ee7b7; animation: badgeSlideIn 0.35s ease forwards;">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs shrink-0">✓</span>
+                <div class="min-w-0">
+                  <p class="text-[10px] uppercase font-black tracking-wider text-emerald-700">Trade-In 舊車估價折抵已成功帶入</p>
+                  <p class="text-sm font-extrabold text-emerald-900 truncate" id="tradeInBadgeAmt">RM 0</p>
+                </div>
+              </div>
+              <button onclick="clearTradeIn()" title="清除/移除折抵"
+                class="shrink-0 w-7 h-7 rounded-full bg-emerald-200 hover:bg-emerald-300 text-emerald-800 font-black text-base flex items-center justify-center transition-all active:scale-95">×</button>
+            </div>
+
             <!-- Selected model info -->
             <div id="newSelectedInfo" class="hidden mb-5 px-4 py-3 rounded-xl bg-blue-50/50 border border-blue-100">
               <div class="flex items-center justify-between">
@@ -412,30 +431,36 @@
                     <td class="px-5 py-3.5 text-right font-bold text-slate-800" id="valOTR">—</td>
                   </tr>
                   <!-- Trade-In Deduction -->
-                  <tr class="res-row border-b border-slate-200 bg-rose-50/20 text-rose-600" id="rowDeduction">
-                    <td class="px-5 py-3.5 font-bold flex items-center gap-2">
-                      <span class="w-1.5 h-1.5 rounded-full bg-accent-red"></span>
-                      <span data-i18n="rowTradeInDeduction">Trade-In 二手車折抵金額</span>
+                  <tr id="rowDeduction" class="res-row hidden" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);">
+                    <td class="px-5 py-3.5 font-black flex items-center gap-2 text-rose-600">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                      <span data-i18n="rowTradeInDeduction">減：舊車回收折抵金額 (Trade-In Discount)</span>
                     </td>
-                    <td class="px-5 py-3.5 text-right font-black" id="valDeduction">—</td>
+                    <td class="px-5 py-3.5 text-right font-black text-lg text-rose-600" id="valDeduction">- RM 0</td>
+                  </tr>
+                  <!-- Divider Line when Trade-in Active -->
+                  <tr id="rowTradeInEqLine" class="hidden">
+                    <td colspan="2" class="px-5 py-1.5 bg-emerald-50 border-y border-dashed border-emerald-300 text-[10px] font-black text-emerald-700 tracking-wider uppercase">
+                      = 最終需補差額 / 實際付款金額 (Final Amount To Pay)
+                    </td>
                   </tr>
                   <!-- Customer Pay Net OTR -->
-                  <tr class="res-row border-t-2 border-accent-blue/30 bg-blue-50/30">
+                  <tr id="rowNetPayMain" class="res-row border-t-2 border-accent-blue/30 bg-blue-50/30">
                     <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full bg-accent-blue shadow-sm"></span>
-                      <span id="labelNetPay" data-i18n="rowNetPayCash">顧客實付現金總額</span>
+                      <span id="labelNetPay" data-i18n="rowNetPayCash">等於：最終需補差額 / 實際付款金額</span>
                     </td>
-                    <td class="px-5 py-4 text-right font-black text-xl text-accent-blue" id="valNetPay">—</td>
+                    <td class="px-5 py-4 text-right font-black text-2xl text-accent-blue" id="valNetPay">—</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <!-- Send to Loan Button (Installment Mode Only) -->
-            <div id="newLoanAction" class="hidden">
-              <button onclick="sendToLoanCalculator()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold shadow transition-all flex items-center justify-center gap-2">
-                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                <span data-i18n="btnCalcLoanQuick">以實付餘額進行車貸分期試算</span>
+            <!-- Send to Loan Button -->
+            <div id="newLoanAction" class="hidden mt-4">
+              <button onclick="sendToLoanCalculator()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-indigo-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                <span id="loanActionText">⚡ 帶入此金額至【借貸計算器】試算</span>
               </button>
             </div>
           </div>
@@ -793,9 +818,9 @@ const i18n = {
     rowMSRP: '官方建議售價 (MSRP)',
     rowInsurance: '預估保險費',
     rowRoadTax: '路稅',
-    rowOTR: '辦到好預估總價 (OTR)',
-    rowTradeInDeduction: 'Trade-In 舊車折抵金額',
-    rowNetPayCash: '顧客實付現金總額',
+    rowOTR: '原新車辦到好總價 (Original OTR)',
+    rowTradeInDeduction: '減：舊車回收折抵金額 (Trade-In Discount)',
+    rowNetPayCash: '等於：最終需補差額 / 實際付款金額',
     rowNetPayInstallment: '顧客分期實付總額 (差額)',
     btnCalcLoanQuick: '以實付餘額進行車貸分期試算',
     usedInputTitle: '二手車買入估價 (Trade-In)',
@@ -1290,33 +1315,50 @@ function renderNewResults() {
   // OTR row
   document.getElementById('valOTR').textContent = fmt(otr);
 
-  // Trade In Offset row
+  // Trade In Offset row & badge sync
   const rowDeduction = document.getElementById('rowDeduction');
+  const rowEqLine = document.getElementById('rowTradeInEqLine');
   const valDeduction = document.getElementById('valDeduction');
+  const rowNetPayMain = document.getElementById('rowNetPayMain');
+  const valNetPay = document.getElementById('valNetPay');
+
   if (appliedTradeInVal > 0) {
-    rowDeduction.classList.remove('hidden');
-    valDeduction.textContent = `-${fmt(appliedTradeInVal)}`;
+    if (rowDeduction) rowDeduction.classList.remove('hidden');
+    if (rowEqLine) rowEqLine.classList.remove('hidden');
+    if (valDeduction) valDeduction.textContent = `- ${fmt(appliedTradeInVal)}`;
+    if (rowNetPayMain) rowNetPayMain.className = 'res-row border-t-2 border-emerald-500 bg-emerald-50/50';
+    if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-emerald-600';
+    showTradeInBadge(appliedTradeInVal);
   } else {
-    rowDeduction.classList.add('hidden');
+    if (rowDeduction) rowDeduction.classList.add('hidden');
+    if (rowEqLine) rowEqLine.classList.add('hidden');
+    if (rowNetPayMain) rowNetPayMain.className = 'res-row border-t-2 border-accent-blue/30 bg-blue-50/30';
+    if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-accent-blue';
+    const badge = document.getElementById('tradeInBadge');
+    if (badge) badge.classList.add('hidden');
   }
 
-  // Final Net Pay row
-  document.getElementById('valNetPay').textContent = fmt(netPay);
+  // Final Net Pay value
+  if (valNetPay) valNetPay.textContent = fmt(netPay);
 
   // Display Apply offset buttons if calculated trade-in exists
   const applyBtn = document.getElementById('btnApplyTradeInDiscount');
-  if (lastCalculatedTradeInVal > 0) {
-    applyBtn.classList.remove('hidden');
-  } else {
-    applyBtn.classList.add('hidden');
+  if (applyBtn) {
+    if (lastCalculatedTradeInVal > 0 && appliedTradeInVal === 0) {
+      applyBtn.classList.remove('hidden');
+    } else {
+      applyBtn.classList.add('hidden');
+    }
   }
 
-  // Installment Mode quick link visibility
+  // Always show Send to Loan button when result exists
   const loanSection = document.getElementById('newLoanAction');
-  if (currentSubTab === 'installment') {
+  if (loanSection) {
     loanSection.classList.remove('hidden');
-  } else {
-    loanSection.classList.add('hidden');
+    const btnText = document.getElementById('loanActionText');
+    if (btnText) {
+      btnText.textContent = `⚡ 帶入此金額 (${fmt(netPay)}) 至【借貸計算器】試算`;
+    }
   }
 
   // Run row micro animation
@@ -1431,22 +1473,38 @@ function calcUsed() {
 }
 
 function applyTradeInToNewBike() {
-  const t = i18n[currentLang];
   appliedTradeInVal = lastCalculatedTradeInVal;
-  alert(t.alertApplySuccess);
-  
-  // Switch to new bike page & trigger redraw
   switchTab('new');
   if (lastNewCalc) {
     renderNewResults();
   }
+  showTradeInBadge(appliedTradeInVal);
 }
 
 function applyTradeInOffset() {
-  const t = i18n[currentLang];
   appliedTradeInVal = lastCalculatedTradeInVal;
-  alert(t.alertOffsetSuccess);
   renderNewResults();
+  showTradeInBadge(appliedTradeInVal);
+}
+
+function showTradeInBadge(val) {
+  const badge = document.getElementById('tradeInBadge');
+  const amtEl = document.getElementById('tradeInBadgeAmt');
+  if (val > 0) {
+    if (amtEl) amtEl.textContent = `已成功帶入 Trade-In 舊車估價：${fmt(val)}`;
+    if (badge) badge.classList.remove('hidden');
+  } else {
+    if (badge) badge.classList.add('hidden');
+  }
+}
+
+function clearTradeIn() {
+  appliedTradeInVal = 0;
+  const badge = document.getElementById('tradeInBadge');
+  if (badge) badge.classList.add('hidden');
+  if (lastNewCalc) {
+    renderNewResults();
+  }
 }
 
 // ================================================================
@@ -1504,8 +1562,12 @@ function applyNetOTRToLoan() {
 }
 
 function sendToLoanCalculator() {
-  applyNetOTRToLoan();
+  if (lastNetPayVal > 0) {
+    document.getElementById('loanAmount').value = lastNetPayVal;
+  }
+  calcLoan();
   switchTab('loan');
+  updateLoanButtonsState();
 }
 
 function onLoanInputChange() {
