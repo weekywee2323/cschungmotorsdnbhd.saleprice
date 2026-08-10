@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="firebase-config.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -219,10 +220,8 @@
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center font-orbitron font-black text-sm bg-gradient-to-br from-accent-red to-accent-blue text-white shrink-0 shadow-md">CS</div>
           <div class="min-w-0">
-            <h1 class="text-sm sm:text-base font-black tracking-wide truncate flex items-center">
-              <span class="text-accent-red">CS</span>
-              <span class="text-slate-800 ml-1">CHUNG SENG MOTOR</span>
-              <span class="text-slate-400 text-xs font-semibold ml-1.5 hidden sm:inline">SDN BHD</span>
+            <h1 class="text-sm sm:text-base font-black tracking-wide truncate uppercase text-black">
+              CS CHUNG SENG MOTOR SDN BHD
             </h1>
             <p class="text-[10px] text-slate-500 tracking-wider uppercase font-bold" data-i18n="siteSubtitle">機車價格計算器</p>
           </div>
@@ -355,8 +354,14 @@
                   <p class="text-sm font-extrabold text-emerald-900 truncate" id="tradeInBadgeAmt">RM 0</p>
                 </div>
               </div>
-              <button onclick="clearTradeIn()" title="清除/移除折抵"
-                class="shrink-0 w-7 h-7 rounded-full bg-emerald-200 hover:bg-emerald-300 text-emerald-800 font-black text-base flex items-center justify-center transition-all active:scale-95">×</button>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="recalcTradeIn()" title="重新計算 Trade-In"
+                  class="px-2.5 h-7 rounded-full bg-white/70 hover:bg-white text-emerald-800 border border-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1 transition-all active:scale-95">
+                  <span>↺</span> 重新計算
+                </button>
+                <button onclick="clearTradeIn()" title="取消 Trade-In 折抵"
+                  class="px-2.5 h-7 rounded-full bg-emerald-200 hover:bg-emerald-300 text-emerald-800 font-black text-[11px] flex items-center justify-center transition-all active:scale-95">取消 ×</button>
+              </div>
             </div>
 
             <!-- Selected model info -->
@@ -580,14 +585,14 @@
                 <tbody id="usedResultBody">
                   <!-- Base Price -->
                   <tr class="res-row border-b border-slate-200">
-                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="valBaseMarketPrice">新車市價估算起點</td>
+                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="valBaseMarketPrice">車齡行情估價 (對照表)</td>
                     <td class="px-4 py-3.5 text-right text-slate-500" id="uMSRPPrice">—</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">—</td>
                     <td class="px-4 py-3.5 text-right font-semibold text-slate-800" id="uBaseMSRP">—</td>
                   </tr>
                   <!-- Year Depreciation -->
                   <tr class="res-row border-b border-slate-200">
-                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="evalAge">年份折舊 (年折 7%)</td>
+                    <td class="px-4 py-3.5 text-slate-700 font-medium" data-i18n="evalAge">收購折讓調整</td>
                     <td class="px-4 py-3.5 text-right text-slate-800" id="uBaseAge">—</td>
                     <td class="px-4 py-3.5 text-right font-bold text-rose-600" id="uDiscAge">—</td>
                     <td class="px-4 py-3.5 text-right font-semibold text-slate-800" id="uRangeAge">—</td>
@@ -758,6 +763,7 @@
   <!-- FOOTER -->
   <footer class="text-center py-6 text-[11px] text-slate-400 border-t border-slate-200/80 bg-white">
     <p>© 2026 CS Chung Seng Motor SDN BHD — <span data-i18n="footerText">內部原型 v4.0 (Static SPA)</span></p>
+    <p class="mt-1"><a href="admin.html" class="text-slate-300 hover:text-slate-500 transition-colors">後台管理</a></p>
   </footer>
 
 </div>
@@ -771,8 +777,13 @@
 // ================================================================
 let currentLang = 'zh';
 let currentSubTab = 'cash'; // 'cash' or 'installment'
-let motorcycleData = [];   // Loaded locally from Google sheets CSV or MOCK
+let motorcycleData = [];   // Loaded live from Firestore, or offline MOCK fallback
 let brandMap = {};          // { Brand: [model1, model2, ...] }
+
+let usedMotorcycleData = []; // Aeon used-bike age/value reference table, from Firestore only
+let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models present in the Aeon sheet
+const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
+let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
 
 let lastNewCalc = null;         // Cached selected New Bike object
 let appliedTradeInVal = 0;      // Value successfully Applied from Used trade-in valuation
@@ -842,8 +853,8 @@ const i18n = {
     thBasePrice: '基礎市場價格',
     thDiscount: '折抵與扣減',
     thFinalRange: '當前剩餘殘值',
-    valBaseMarketPrice: '估價計算起點 (MSRP)',
-    evalAge: '年份折舊 (年折 7%)',
+    valBaseMarketPrice: '車齡行情估價 (對照表)',
+    evalAge: '收購折讓調整',
     evalGradeFee: '等級基本維修費',
     evalFinalTradeInPrice: '最終回收價格',
     applyTradeInToNewBike: '帶入此回收價至新車計算 (Apply to New Bike)',
@@ -865,6 +876,7 @@ const i18n = {
     alertBrand: '請選擇品牌。',
     alertModel: '請選擇型號。',
     alertFill: '請填寫所有欄位。',
+    alertNoUsedData: '此車款目前沒有可用的行情估價資料。',
     alertOffsetSuccess: '成功套用折抵金額！',
     alertApplySuccess: '回收價已儲存！網頁已跳轉至新車分頁並套用折抵折扣。',
   },
@@ -923,8 +935,8 @@ const i18n = {
     thBasePrice: 'Base Price',
     thDiscount: 'Deductions',
     thFinalRange: 'Remaining Value',
-    valBaseMarketPrice: 'Base Value Start (MSRP)',
-    evalAge: 'Age Depreciation (7% per year)',
+    valBaseMarketPrice: 'Reference Value (By Age)',
+    evalAge: 'Purchase Adjustment',
     evalGradeFee: 'Grade Repair Fee',
     evalFinalTradeInPrice: 'Final Trade-In Value',
     applyTradeInToNewBike: 'Apply Trade-In to New Bike',
@@ -946,6 +958,7 @@ const i18n = {
     alertBrand: 'Please select a brand.',
     alertModel: 'Please select a model.',
     alertFill: 'Please fill in all fields.',
+    alertNoUsedData: 'No reference pricing data is available for this model yet.',
     alertOffsetSuccess: 'Trade-in discount applied successfully!',
     alertApplySuccess: 'Deduction stored. Switched to New Motorcycle tab with discount active.',
   },
@@ -1004,8 +1017,8 @@ const i18n = {
     thBasePrice: 'Harga Asas',
     thDiscount: 'Pemotongan',
     thFinalRange: 'Baki Nilai',
-    valBaseMarketPrice: 'Mula Harga Asas (MSRP)',
-    evalAge: 'Susut Nilai Umur (7% setahun)',
+    valBaseMarketPrice: 'Nilai Rujukan (Mengikut Umur)',
+    evalAge: 'Pelarasan Pembelian',
     evalGradeFee: 'Kos Baik Pulih Gred',
     evalFinalTradeInPrice: 'Nilai Trade-In Akhir',
     applyTradeInToNewBike: 'Gunakan Nilai Trade-In untuk Motor Baru',
@@ -1027,6 +1040,7 @@ const i18n = {
     alertBrand: 'Sila pilih jenama.',
     alertModel: 'Sila pilih model.',
     alertFill: 'Sila isi semua ruangan.',
+    alertNoUsedData: 'Tiada data harga rujukan untuk model ini buat masa ini.',
     alertOffsetSuccess: 'Diskaun trade-in berjaya digunakan!',
     alertApplySuccess: 'Kos pemotongan disimpan. Beralih ke halaman Motosikal Baru dengan diskaun diaktifkan.',
   }
@@ -1061,51 +1075,133 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchBikeData();
 });
 
-// Fetch CSV Data dynamically from Google Sheets, fallbacks to static dataset on connection fail
+// Loads all live pricing data from Firestore in real time: new-bike prices,
+// the Aeon used-bike age/value reference table, and the trade-in margin
+// setting. New-bike data falls back to the offline local dataset if
+// Firestore is unreachable; used-bike data has no offline fallback since it
+// only ever comes from the imported Aeon sheet.
 async function fetchBikeData() {
   try {
-    const res = await fetch(CSV_URL);
-    if (!res.ok) throw new Error("Network status invalid");
-    const text = await res.text();
-    const parsed = parseCSV(text);
-    if (parsed && parsed.length > 0) {
-      motorcycleData = parsed;
-    } else {
-      throw new Error("Parsed data empty");
-    }
+    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
+    const { getFirestore, collection, doc, onSnapshot } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore.js`);
+    const app = initializeApp(FIREBASE_CONFIG);
+    const db = getFirestore(app);
+
+    await Promise.all([
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, MOTO_COLLECTION), (snapshot) => {
+          const docs = snapshot.docs.map(d => d.data());
+          motorcycleData = docs.length > 0 ? docs : JSON.parse(JSON.stringify(LOCAL_BIKE_DATA));
+          applyMotoDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 新車資料連線失敗，改用離線備援資料：", err);
+          motorcycleData = JSON.parse(JSON.stringify(LOCAL_BIKE_DATA));
+          applyMotoDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, USED_MOTO_COLLECTION), (snapshot) => {
+          usedMotorcycleData = snapshot.docs.map(d => d.data());
+          applyUsedMotoDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 二手車資料連線失敗：", err);
+          usedMotorcycleData = [];
+          applyUsedMotoDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(doc(db, TRADE_IN_SETTINGS_PATH), (snap) => {
+          const data = snap.exists() ? snap.data() : null;
+          tradeInMarginPercent = (data && typeof data.marginPercent === 'number') ? data.marginPercent : DEFAULT_TRADE_IN_MARGIN;
+          if (lastCalculatedTradeInVal > 0) calcUsed();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 收購 margin 設定連線失敗，使用預設值：", err);
+          tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
+    ]);
   } catch (err) {
-    console.warn("Failed to fetch Google Sheets CSV, using offline local dataset instead:", err);
+    console.warn("Firebase 載入失敗，改用離線備援資料：", err);
     motorcycleData = JSON.parse(JSON.stringify(LOCAL_BIKE_DATA));
+    applyMotoDataUpdate();
+    usedMotorcycleData = [];
+    applyUsedMotoDataUpdate();
   }
+}
 
-  // Populate maps
-  brandMap = {};
-  motorcycleData.forEach(d => {
-    if (!d.brand) return;
-    if (!brandMap[d.brand]) brandMap[d.brand] = [];
-    if (d.model && !brandMap[d.brand].includes(d.model)) brandMap[d.brand].push(d.model);
-  });
-
-  // Sort
-  const sorted = {};
-  Object.keys(brandMap).sort().forEach(k => {
-    sorted[k] = brandMap[k].sort();
-  });
-  brandMap = sorted;
-
-  populateBrands('new');
-  populateBrands('used');
+// Rebuilds the New Bike brand/model dropdown map and refreshes any on-screen
+// results whenever new-bike price data changes (initial load or live update).
+function applyMotoDataUpdate() {
+  brandMap = buildBrandMap(motorcycleData);
+  refreshBrandDropdown('new');
   updateLoanButtonsState();
+
+  // Live-refresh an already displayed New Bike result if its price changed
+  if (lastNewCalc) {
+    const fresh = findMoto(lastNewCalc.brand, lastNewCalc.model);
+    if (fresh) {
+      lastNewCalc = fresh;
+      renderNewResults();
+    }
+  }
+}
+
+// Rebuilds the Used Bike (Trade-In) brand/model dropdown map from the Aeon
+// reference table — only models that appear in that sheet are selectable
+// here, independent of what's in the New Bike price list.
+function applyUsedMotoDataUpdate() {
+  usedBrandMap = buildBrandMap(usedMotorcycleData);
+  refreshBrandDropdown('used');
+  if (lastCalculatedTradeInVal > 0) calcUsed();
+}
+
+function buildBrandMap(data) {
+  const map = {};
+  data.forEach(d => {
+    if (!d.brand) return;
+    if (!map[d.brand]) map[d.brand] = [];
+    if (d.model && !map[d.brand].includes(d.model)) map[d.brand].push(d.model);
+  });
+  const sorted = {};
+  Object.keys(map).sort().forEach(k => { sorted[k] = map[k].sort(); });
+  return sorted;
+}
+
+// Repopulates a section's brand/model dropdowns from its current data map,
+// preserving whatever brand/model the user already had selected if it's
+// still valid in the refreshed data.
+function refreshBrandDropdown(section) {
+  const brandEl = document.getElementById(section + 'Brand');
+  const modelEl = document.getElementById(section + 'Model');
+  const brand = brandEl.value;
+  const model = modelEl.value;
+  const map = section === 'used' ? usedBrandMap : brandMap;
+  populateBrands(section);
+  if (brand && map[brand]) {
+    brandEl.value = brand;
+    onBrandChange(section);
+    if (model) modelEl.value = model;
+  }
 }
 
 // ================================================================
 // DROPDOWNS POPULATE
 // ================================================================
 function populateBrands(section) {
+  const map = section === 'used' ? usedBrandMap : brandMap;
   const sel = document.getElementById(section + 'Brand');
   const t = i18n[currentLang];
   sel.innerHTML = `<option value="">${t.phSelect}</option>`;
-  Object.keys(brandMap).forEach(brand => {
+  Object.keys(map).forEach(brand => {
     sel.innerHTML += `<option value="${brand}">${brand}</option>`;
   });
 
@@ -1115,6 +1211,7 @@ function populateBrands(section) {
 }
 
 function onBrandChange(section) {
+  const map = section === 'used' ? usedBrandMap : brandMap;
   const brand = document.getElementById(section + 'Brand').value;
   const modelSel = document.getElementById(section + 'Model');
   const t = i18n[currentLang];
@@ -1123,13 +1220,13 @@ function onBrandChange(section) {
     modelSel.disabled = true;
     return;
   }
-  const models = brandMap[brand] || [];
+  const models = map[brand] || [];
   modelSel.innerHTML = `<option value="">${t.phSelect}</option>`;
   models.forEach(m => {
     modelSel.innerHTML += `<option value="${m}">${m}</option>`;
   });
   modelSel.disabled = false;
-  
+
   if (section === 'used') {
     onUsedInputChange();
   }
@@ -1216,18 +1313,8 @@ function switchLang(lang) {
   document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : lang === 'ms' ? 'ms' : 'en';
 
   // Redraw Dropdowns
-  ['new', 'used'].forEach(s => {
-    const brand = document.getElementById(s + 'Brand').value;
-    const model = document.getElementById(s + 'Model').value;
-    populateBrands(s);
-    if (brand) {
-      document.getElementById(s + 'Brand').value = brand;
-      onBrandChange(s);
-      if (model) {
-        document.getElementById(s + 'Model').value = model;
-      }
-    }
-  });
+  refreshBrandDropdown('new');
+  refreshBrandDropdown('used');
 
   // Re-translate grades options
   const gradeSel = document.getElementById('usedGrade');
@@ -1409,19 +1496,29 @@ function calcUsed() {
     return;
   }
 
-  const year = parseInt(yearStr);
-  const moto = findMoto(brand, model);
-  const baseMSRP = moto ? moto.msrp : 10000;
-  const age = Math.max(0, 2026 - year);
+  const moto = findUsedMoto(brand, model);
+  if (!moto) { alert(t.alertModel); return; }
 
-  // Age Depreciation (7% per annum)
-  const deprRate = Math.min(age * 0.07, 0.70);
-  const deprAmount = Math.round(baseMSRP * deprRate);
-  const afterAge = baseMSRP - deprAmount;
+  const year = parseInt(yearStr);
+  const age = Math.min(Math.max(1, 2026 - year), 9);
+
+  // Look up the Aeon reference value for this age; if that year's column
+  // is blank in the sheet, fall back to the nearest younger year that has data.
+  let baseValue = 0;
+  for (let y = age; y >= 1; y--) {
+    const v = moto['y' + y] || 0;
+    if (v > 0) { baseValue = v; break; }
+  }
+  if (baseValue === 0) { alert(t.alertNoUsedData); return; }
+
+  // Buy-in margin — admin-configurable percentage, intentionally not shown
+  // on screen (only the resulting RM deduction is displayed).
+  const marginAmount = Math.round(baseValue * (tradeInMarginPercent / 100));
+  const afterMargin = baseValue - marginAmount;
 
   // Grade Repair Fee Deductions
   const gradeFee = grade === 'bigbike' ? 3000 : 1000;
-  const afterGrade = Math.max(0, afterAge - gradeFee);
+  const afterGrade = Math.max(0, afterMargin - gradeFee);
 
   // Checkboxes Damage Deductions
   const dmgBody = document.getElementById('dmgBody').checked ? 200 : 0;
@@ -1429,7 +1526,7 @@ function calcUsed() {
   const dmgTires = document.getElementById('dmgTires').checked ? 250 : 0;
   const dmgAbsorber = document.getElementById('dmgAbsorber').checked ? 200 : 0;
   const dmgWiring = document.getElementById('dmgWiring').checked ? 150 : 0;
-  
+
   const totalDmgDeduction = dmgBody + dmgEngine + dmgTires + dmgAbsorber + dmgWiring;
   const finalTradeInValue = Math.max(0, afterGrade - totalDmgDeduction);
 
@@ -1437,14 +1534,14 @@ function calcUsed() {
   lastCalculatedTradeInVal = finalTradeInValue;
 
   // Render UI Rows
-  document.getElementById('uMSRPPrice').textContent = fmt(baseMSRP);
-  document.getElementById('uBaseMSRP').textContent = fmt(baseMSRP);
+  document.getElementById('uMSRPPrice').textContent = fmt(baseValue);
+  document.getElementById('uBaseMSRP').textContent = fmt(baseValue);
 
-  document.getElementById('uBaseAge').textContent = fmt(baseMSRP);
-  document.getElementById('uDiscAge').textContent = `-${(deprRate * 100).toFixed(0)}% (${fmt(deprAmount)})`;
-  document.getElementById('uRangeAge').textContent = fmt(afterAge);
+  document.getElementById('uBaseAge').textContent = fmt(baseValue);
+  document.getElementById('uDiscAge').textContent = `-${fmt(marginAmount)}`;
+  document.getElementById('uRangeAge').textContent = fmt(afterMargin);
 
-  document.getElementById('uBaseGrade').textContent = fmt(afterAge);
+  document.getElementById('uBaseGrade').textContent = fmt(afterMargin);
   document.getElementById('uDiscGrade').textContent = `-${fmt(gradeFee)}`;
   document.getElementById('uRangeGrade').textContent = fmt(afterGrade);
 
@@ -1452,8 +1549,8 @@ function calcUsed() {
   document.getElementById('uDiscDamage').textContent = `-${fmt(totalDmgDeduction)}`;
   document.getElementById('uRangeDamage').textContent = fmt(finalTradeInValue);
 
-  document.getElementById('uBaseFinal').textContent = fmt(baseMSRP);
-  const totalDeductions = deprAmount + gradeFee + totalDmgDeduction;
+  document.getElementById('uBaseFinal').textContent = fmt(baseValue);
+  const totalDeductions = marginAmount + gradeFee + totalDmgDeduction;
   document.getElementById('uDiscFinal').textContent = `-${fmt(totalDeductions)}`;
   document.getElementById('uRangeFinal').textContent = fmt(finalTradeInValue);
 
@@ -1505,6 +1602,10 @@ function clearTradeIn() {
   if (lastNewCalc) {
     renderNewResults();
   }
+}
+
+function recalcTradeIn() {
+  switchTab('used');
 }
 
 // ================================================================
@@ -1607,55 +1708,8 @@ function findMoto(brand, model) {
   return motorcycleData.find(d => d.brand === brand && d.model === model);
 }
 
-function parseCSVLine(line) {
-  const result = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i+1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQ = !inQ;
-      }
-    } else if (c === ',' && !inQ) {
-      result.push(cur.trim());
-      cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  result.push(cur.trim());
-  return result;
-}
-
-function parseRMValue(val) {
-  if (typeof val === 'number') return val;
-  if (!val) return 0;
-  return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-}
-
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return null;
-  const data = [];
-  for (let i = 1; i < lines.length; i++) {
-    const vals = parseCSVLine(lines[i]);
-    if (vals.length < 6) continue;
-    data.push({
-      brand: vals[0] || '',
-      model: vals[1] || '',
-      msrp: parseRMValue(vals[2]),
-      ins1st: parseRMValue(vals[3]),
-      ins3rd: parseRMValue(vals[4]),
-      roadTax: parseRMValue(vals[5]),
-      plateBooking: parseRMValue(vals[6]),
-      runnerFee: parseRMValue(vals[7])
-    });
-  }
-  return data.length > 0 ? data : null;
+function findUsedMoto(brand, model) {
+  return usedMotorcycleData.find(d => d.brand === brand && d.model === model);
 }
 
 function fmt(n) {

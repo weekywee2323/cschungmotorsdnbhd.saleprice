@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>後台管理 — CS Chung Seng Motor</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="firebase-config.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            accent: { red: '#dc2626', blue: '#2563eb', redHover: '#b91c1c', blueHover: '#1d4ed8' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    body { background-color: #f8fafc; color: #0f172a; min-height: 100vh; }
+    .card-light {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03), 0 2px 10px -1px rgba(15, 23, 42, 0.02);
+    }
+    .form-ctrl {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+      transition: all 0.2s ease;
+    }
+    .form-ctrl:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      outline: none;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="antialiased">
+<div class="min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <header class="bg-white sticky top-0 z-50 border-b border-slate-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-base font-black tracking-wide truncate uppercase text-black">CS CHUNG SENG MOTOR SDN BHD</h1>
+          <p class="text-[10px] text-slate-500 tracking-wider uppercase font-bold">後台價格管理系統</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span id="currentUserEmail" class="hidden text-xs font-semibold text-slate-500"></span>
+          <button id="logoutBtn" onclick="logout()" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">登出</button>
+          <a href="index.html" class="text-xs font-bold text-accent-blue hover:underline">← 返回計算機首頁</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- LOGIN VIEW -->
+    <div id="loginView" class="max-w-sm mx-auto mt-16">
+      <div class="card-light rounded-2xl p-7">
+        <h2 class="text-lg font-black mb-1">管理員登入</h2>
+        <p class="text-xs text-slate-500 mb-5">此頁面僅供內部授權人員使用，請使用 Firebase 管理帳號登入。</p>
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">帳號 (ID)</label>
+        <input id="loginEmail" type="text" autocapitalize="off" autocomplete="username" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="例如：boss" />
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">密碼</label>
+        <input id="loginPassword" type="password" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="••••••••" onkeydown="if(event.key==='Enter') login()" />
+
+        <p id="loginError" class="hidden text-xs font-bold text-rose-600 mb-3"></p>
+
+        <button onclick="login()" class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all">登入</button>
+      </div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="adminView" class="hidden">
+
+      <!-- Import / Export -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          批次匯入 / 匯出
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位順序：品牌, 型號, 賣價, 一號保險, 三號保險, 路稅, 預定車牌, 標車牌人工費（含標題列）。匯入時同品牌+型號的資料會直接覆蓋原本價格。</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="csvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+      </div>
+
+      <!-- Add New -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+          新增車款
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <input id="newBrandInput" placeholder="品牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newModelInput" placeholder="型號" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newMsrpInput" type="number" placeholder="賣價" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newIns1stInput" type="number" placeholder="一號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newIns3rdInput" type="number" placeholder="三號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newRoadTaxInput" type="number" placeholder="路稅" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newPlateInput" type="number" placeholder="預定車牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newRunnerInput" type="number" placeholder="標車牌人工費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+        </div>
+        <button onclick="addNew()" class="mt-4 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增此車款</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card-light rounded-2xl p-6 mb-10">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          目前車款價格（共 <span id="motoCount">0</span> 筆，即時同步）
+        </h2>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <input id="motoSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onMotoSearchInput()" />
+          <button id="motoDeleteSelectedBtn" onclick="deleteSelectedMoto()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-3 py-3 w-8"><input type="checkbox" id="motoSelectAllChk" onchange="toggleMotoSelectAll(this.checked)"></th>
+                <th class="text-left px-3 py-3 font-bold">品牌</th>
+                <th class="text-left px-3 py-3 font-bold">型號</th>
+                <th class="text-right px-3 py-3 font-bold">賣價</th>
+                <th class="text-right px-3 py-3 font-bold">一號保險</th>
+                <th class="text-right px-3 py-3 font-bold">三號保險</th>
+                <th class="text-right px-3 py-3 font-bold">路稅</th>
+                <th class="text-right px-3 py-3 font-bold">預定車牌</th>
+                <th class="text-right px-3 py-3 font-bold">標車牌人工費</th>
+                <th class="text-left px-3 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="motoTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- USED BIKE (TRADE-IN) SECTION                                 -->
+      <!-- ============================================================ -->
+      <h2 class="text-sm font-black uppercase tracking-wide text-slate-400 mb-3">二手車收購行情（Aeon 對照表）</h2>
+
+      <!-- Margin Setting -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+          收購折讓設定
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">二手車估價會先用對照表查出該車齡的行情價，再扣掉這個百分比當作收購折讓空間，才是實際開給客戶的收購價。這個數字不會顯示在二手車估價畫面上。</p>
+        <div class="flex items-center gap-3">
+          <input id="marginPercentInput" type="number" step="0.5" min="0" max="100" class="form-ctrl w-28 rounded-xl px-3 py-2 text-sm" placeholder="15" />
+          <span class="text-sm text-slate-500">%</span>
+          <button onclick="saveMarginSetting()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">儲存設定</button>
+        </div>
+      </div>
+
+      <!-- Import / Export -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          匯入二手車行情資料
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">直接把 Aeon 對照表發布的 CSV（品牌, 型號, Year 1~Year 9, 備註）丟進來匯入即可，格式會自動辨識。表格上沒有的車款，客戶端的二手車估價就不會出現。</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="usedCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importUsedCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportUsedCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card-light rounded-2xl p-6">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          目前二手車行情資料（共 <span id="usedMotoCount">0</span> 筆，即時同步）
+        </h2>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <input id="usedMotoSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onUsedMotoSearchInput()" />
+          <button id="usedMotoDeleteSelectedBtn" onclick="deleteSelectedUsedMoto()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="usedMotoSelectAllChk" onchange="toggleUsedMotoSelectAll(this.checked)"></th>
+                <th class="text-left px-2 py-3 font-bold">品牌</th>
+                <th class="text-left px-2 py-3 font-bold">型號</th>
+                <th class="text-right px-2 py-3 font-bold">Y1</th>
+                <th class="text-right px-2 py-3 font-bold">Y2</th>
+                <th class="text-right px-2 py-3 font-bold">Y3</th>
+                <th class="text-right px-2 py-3 font-bold">Y4</th>
+                <th class="text-right px-2 py-3 font-bold">Y5</th>
+                <th class="text-right px-2 py-3 font-bold">Y6</th>
+                <th class="text-right px-2 py-3 font-bold">Y7</th>
+                <th class="text-right px-2 py-3 font-bold">Y8</th>
+                <th class="text-right px-2 py-3 font-bold">Y9</th>
+                <th class="text-left px-2 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="usedMotoTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden"></div>
+
+<script>
+// ================================================================
+// FIREBASE INIT (dynamic import so functions stay in global scope
+// for the inline onclick handlers used throughout this page)
+// ================================================================
+let db, auth;
+let motoCache = [];
+let usedMotoCache = [];
+let unsubscribeMoto = null;
+let unsubscribeUsedMoto = null;
+let unsubscribeSettings = null;
+
+let motoSearchTerm = '';
+let selectedMotoIds = new Set();
+let usedMotoSearchTerm = '';
+let selectedUsedMotoIds = new Set();
+
+async function initFirebase() {
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
+  const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`);
+  const fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore.js`);
+  window.__authMod = authMod;
+  window.__fsMod = fsMod;
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  auth = authMod.getAuth(app);
+  db = fsMod.getFirestore(app);
+
+  authMod.onAuthStateChanged(auth, (user) => {
+    renderAuthState(user);
+    if (user) {
+      listenMotoData();
+      listenUsedMotoData();
+      listenTradeInSettings();
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', initFirebase);
+
+function renderAuthState(user) {
+  document.getElementById('loginView').classList.toggle('hidden', !!user);
+  document.getElementById('adminView').classList.toggle('hidden', !user);
+  document.getElementById('logoutBtn').classList.toggle('hidden', !user);
+  const emailEl = document.getElementById('currentUserEmail');
+  emailEl.classList.toggle('hidden', !user);
+  emailEl.textContent = user ? `已登入：${toDisplayId(user.email)}` : '';
+}
+
+// Firebase Auth's email/password provider requires an email-shaped
+// identifier, but it never has to be a deliverable address — so a plain
+// ID like "boss" is normalized to "boss@csmotor.local" behind the scenes,
+// letting the admin log in with a short ID instead of a real email.
+const ID_LOGIN_DOMAIN = 'csmotor.local';
+
+function toLoginEmail(id) {
+  return id.includes('@') ? id : `${id}@${ID_LOGIN_DOMAIN}`;
+}
+
+function toDisplayId(email) {
+  return email.endsWith(`@${ID_LOGIN_DOMAIN}`) ? email.slice(0, -(`@${ID_LOGIN_DOMAIN}`).length) : email;
+}
+
+async function login() {
+  const id = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.classList.add('hidden');
+  if (!id || !pass) {
+    errEl.textContent = '請輸入帳號與密碼。';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try {
+    await window.__authMod.signInWithEmailAndPassword(auth, toLoginEmail(id), pass);
+  } catch (err) {
+    errEl.textContent = '登入失敗：帳號或密碼錯誤。';
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function logout() {
+  if (unsubscribeMoto) { unsubscribeMoto(); unsubscribeMoto = null; }
+  if (unsubscribeUsedMoto) { unsubscribeUsedMoto(); unsubscribeUsedMoto = null; }
+  if (unsubscribeSettings) { unsubscribeSettings(); unsubscribeSettings = null; }
+  await window.__authMod.signOut(auth);
+}
+
+// ================================================================
+// LIVE DATA TABLE
+// ================================================================
+function listenMotoData() {
+  if (unsubscribeMoto) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeMoto = onSnapshot(collection(db, MOTO_COLLECTION), (snapshot) => {
+    motoCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    motoCache.sort((a, b) => (a.brand + a.model).localeCompare(b.brand + b.model));
+    renderTable();
+  }, (err) => {
+    showToast('讀取資料失敗：' + err.message, true);
+  });
+}
+
+function getFilteredMoto() {
+  const q = motoSearchTerm.trim().toLowerCase();
+  if (!q) return motoCache;
+  return motoCache.filter(m => `${m.brand || ''} ${m.model || ''}`.toLowerCase().includes(q));
+}
+
+function onMotoSearchInput() {
+  motoSearchTerm = document.getElementById('motoSearchInput').value;
+  renderTable();
+}
+
+function toggleMotoSelect(id, checked) {
+  if (checked) selectedMotoIds.add(id); else selectedMotoIds.delete(id);
+  updateMotoBulkBar();
+}
+
+function toggleMotoSelectAll(checked) {
+  const filtered = getFilteredMoto();
+  filtered.forEach(m => checked ? selectedMotoIds.add(m.id) : selectedMotoIds.delete(m.id));
+  renderTable();
+}
+
+function updateMotoBulkBar() {
+  const btn = document.getElementById('motoDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedMotoIds.size})`;
+  btn.disabled = selectedMotoIds.size === 0;
+}
+
+async function deleteSelectedMoto() {
+  const ids = [...selectedMotoIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆車款資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, MOTO_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedMotoIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderTable() {
+  document.getElementById('motoCount').textContent = motoCache.length;
+  const filtered = getFilteredMoto();
+  const tbody = document.getElementById('motoTableBody');
+  updateMotoBulkBar();
+
+  const allChk = document.getElementById('motoSelectAllChk');
+  if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedMotoIds.has(m.id));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400 text-xs">${motoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入車款價格，或手動新增一筆。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => `
+    <tr data-id="${m.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedMotoIds.has(m.id) ? 'checked' : ''} onchange="toggleMotoSelect('${m.id}', this.checked)"></td>
+      <td class="px-2 py-2"><input class="f-brand form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
+      <td class="px-2 py-2"><input class="f-model form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-msrp form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.msrp)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-ins1st form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.ins1st)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-ins3rd form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.ins3rd)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-roadTax form-ctrl w-16 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.roadTax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-plateBooking form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.plateBooking)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-runnerFee form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.runnerFee)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function readRowData(tr) {
+  return {
+    brand: tr.querySelector('.f-brand').value.trim(),
+    model: tr.querySelector('.f-model').value.trim(),
+    msrp: numOr0(tr.querySelector('.f-msrp').value),
+    ins1st: numOr0(tr.querySelector('.f-ins1st').value),
+    ins3rd: numOr0(tr.querySelector('.f-ins3rd').value),
+    roadTax: numOr0(tr.querySelector('.f-roadTax').value),
+    plateBooking: numOr0(tr.querySelector('.f-plateBooking').value),
+    runnerFee: numOr0(tr.querySelector('.f-runnerFee').value),
+  };
+}
+
+async function saveRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = readRowData(tr);
+  if (!data.brand || !data.model) {
+    showToast('品牌與型號不可留空', true);
+    return;
+  }
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, MOTO_COLLECTION, id), data);
+    showToast(`已儲存：${data.brand} ${data.model}`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteRow(id) {
+  const row = motoCache.find(m => m.id === id);
+  const label = row ? `${row.brand} ${row.model}` : id;
+  if (!confirm(`確定要刪除「${label}」嗎？此動作無法復原。`)) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, MOTO_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function addNew() {
+  const brand = document.getElementById('newBrandInput').value.trim();
+  const model = document.getElementById('newModelInput').value.trim();
+  if (!brand || !model) {
+    showToast('請輸入品牌與型號', true);
+    return;
+  }
+  const data = {
+    brand, model,
+    msrp: numOr0(document.getElementById('newMsrpInput').value),
+    ins1st: numOr0(document.getElementById('newIns1stInput').value),
+    ins3rd: numOr0(document.getElementById('newIns3rdInput').value),
+    roadTax: numOr0(document.getElementById('newRoadTaxInput').value),
+    plateBooking: numOr0(document.getElementById('newPlateInput').value),
+    runnerFee: numOr0(document.getElementById('newRunnerInput').value),
+  };
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, MOTO_COLLECTION, docIdFor(brand, model)), data);
+    showToast(`已新增：${brand} ${model}`);
+    ['newBrandInput','newModelInput','newMsrpInput','newIns1stInput','newIns3rdInput','newRoadTaxInput','newPlateInput','newRunnerInput']
+      .forEach(fid => document.getElementById(fid).value = '');
+  } catch (err) {
+    showToast('新增失敗：' + err.message, true);
+  }
+}
+
+// ================================================================
+// CSV IMPORT / EXPORT
+// ================================================================
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseRMValue(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+}
+
+async function importCSV() {
+  const fileInput = document.getElementById('csvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) {
+    showToast('CSV 內容是空的', true);
+    return;
+  }
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const v = parseCSVLine(lines[i]);
+    if (v.length < 2 || !v[0] || !v[1]) continue;
+    rows.push({
+      brand: v[0], model: v[1],
+      msrp: parseRMValue(v[2]), ins1st: parseRMValue(v[3]), ins3rd: parseRMValue(v[4]),
+      roadTax: parseRMValue(v[5]), plateBooking: parseRMValue(v[6]), runnerFee: parseRMValue(v[7]),
+    });
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將匯入 ${rows.length} 筆車款資料（同品牌+型號會覆蓋原本價格）。確定繼續嗎？`)) return;
+
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => {
+        batch.set(doc(db, MOTO_COLLECTION, docIdFor(r.brand, r.model)), r);
+      });
+      await batch.commit();
+    }
+    showToast(`匯入完成：共 ${rows.length} 筆車款資料已更新。`);
+    fileInput.value = '';
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportCSV() {
+  const header = ['brand', 'model', 'msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
+  const lines = [header.join(',')];
+  motoCache.forEach(m => {
+    lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `moto-price-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(val) {
+  const s = String(val);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+// ================================================================
+// USED BIKE (TRADE-IN) DATA — Aeon age/value reference table
+// ================================================================
+const YEAR_KEYS = ['y1', 'y2', 'y3', 'y4', 'y5', 'y6', 'y7', 'y8', 'y9'];
+
+function listenUsedMotoData() {
+  if (unsubscribeUsedMoto) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeUsedMoto = onSnapshot(collection(db, USED_MOTO_COLLECTION), (snapshot) => {
+    usedMotoCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    usedMotoCache.sort((a, b) => (a.brand + a.model).localeCompare(b.brand + b.model));
+    renderUsedTable();
+  }, (err) => {
+    showToast('讀取二手車資料失敗：' + err.message, true);
+  });
+}
+
+function getFilteredUsedMoto() {
+  const q = usedMotoSearchTerm.trim().toLowerCase();
+  if (!q) return usedMotoCache;
+  return usedMotoCache.filter(m => `${m.brand || ''} ${m.model || ''}`.toLowerCase().includes(q));
+}
+
+function onUsedMotoSearchInput() {
+  usedMotoSearchTerm = document.getElementById('usedMotoSearchInput').value;
+  renderUsedTable();
+}
+
+function toggleUsedMotoSelect(id, checked) {
+  if (checked) selectedUsedMotoIds.add(id); else selectedUsedMotoIds.delete(id);
+  updateUsedMotoBulkBar();
+}
+
+function toggleUsedMotoSelectAll(checked) {
+  const filtered = getFilteredUsedMoto();
+  filtered.forEach(m => checked ? selectedUsedMotoIds.add(m.id) : selectedUsedMotoIds.delete(m.id));
+  renderUsedTable();
+}
+
+function updateUsedMotoBulkBar() {
+  const btn = document.getElementById('usedMotoDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedUsedMotoIds.size})`;
+  btn.disabled = selectedUsedMotoIds.size === 0;
+}
+
+async function deleteSelectedUsedMoto() {
+  const ids = [...selectedUsedMotoIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆二手車行情資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, USED_MOTO_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedUsedMotoIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderUsedTable() {
+  document.getElementById('usedMotoCount').textContent = usedMotoCache.length;
+  const filtered = getFilteredUsedMoto();
+  const tbody = document.getElementById('usedMotoTableBody');
+  updateUsedMotoBulkBar();
+
+  const allChk = document.getElementById('usedMotoSelectAllChk');
+  if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedUsedMotoIds.has(m.id));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-400 text-xs">${usedMotoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入 Aeon 對照表。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => `
+    <tr data-id="${m.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedUsedMotoIds.has(m.id) ? 'checked' : ''} onchange="toggleUsedMotoSelect('${m.id}', this.checked)"></td>
+      <td class="px-2 py-2"><input class="uf-brand form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
+      <td class="px-2 py-2"><input class="uf-model form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
+      ${YEAR_KEYS.map(yk => `<td class="px-1 py-2"><input type="number" class="uf-${yk} form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-[11px] text-right" value="${numOr0(m[yk])}"></td>`).join('')}
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveUsedRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteUsedRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function readUsedRowData(tr) {
+  const data = {
+    brand: tr.querySelector('.uf-brand').value.trim(),
+    model: tr.querySelector('.uf-model').value.trim(),
+  };
+  YEAR_KEYS.forEach(yk => { data[yk] = numOr0(tr.querySelector(`.uf-${yk}`).value); });
+  return data;
+}
+
+async function saveUsedRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = readUsedRowData(tr);
+  if (!data.brand || !data.model) {
+    showToast('品牌與型號不可留空', true);
+    return;
+  }
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, USED_MOTO_COLLECTION, id), data);
+    showToast(`已儲存：${data.brand} ${data.model}`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteUsedRow(id) {
+  const row = usedMotoCache.find(m => m.id === id);
+  const label = row ? `${row.brand} ${row.model}` : id;
+  if (!confirm(`確定要刪除「${label}」嗎？此動作無法復原，該車款將無法在二手車估價中選擇。`)) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, USED_MOTO_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+// Parses the Aeon financing-guide CSV as published from Google Sheets:
+// a header row containing "Year 1" (optionally preceded by title rows, and
+// optionally followed by a 備註/日期 remarks column — detected from the
+// header itself so this works whether or not that column is present), then
+// data rows shaped like: 品牌, 型號, Year1..Year9 (quoted, comma-thousands).
+// Some rows have the engine CC leaked into its own unquoted column right
+// after the model name (e.g. "NOVA,125,..." meaning model "NOVA 125") —
+// detected because a genuine Year-1 value is always >= RM1,000 and thus
+// always comma-formatted, while a leaked CC value never has a comma and
+// is always a small plain number.
+function parseAeonCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/year\s*1/i.test(lines[i])) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含 "Year 1" 欄位），請確認是不是正確的 Aeon 對照表 CSV。');
+  }
+
+  // Figure out how many trailing columns (e.g. 備註/日期) sit after the Year
+  // columns in this particular file, so they're never mistaken for year data.
+  const headerFields = parseCSVLine(lines[headerIdx]);
+  const yearColCount = headerFields.filter(h => /year\s*\d/i.test(h)).length || 9;
+  const trailingNonYearCols = Math.max(0, headerFields.length - 2 - yearColCount);
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.length < 3 || !f[0].trim() || !f[1].trim()) continue;
+
+    const brand = f[0].trim();
+    let model = f[1].trim();
+    let idx = 2;
+
+    const candidate = (f[idx] || '').trim();
+    if (candidate && !candidate.includes(',') && /^\d+(\.\d+)?$/.test(candidate) && parseFloat(candidate) < 1000) {
+      model = `${model} ${candidate}`;
+      idx++;
+    }
+
+    // Rows missing their later years (Year 7-9 not yet aged into) simply
+    // have fewer fields before any trailing remarks column, so only fill
+    // the years that are actually present.
+    const yearFieldsAvailable = Math.max(0, f.length - idx - trailingNonYearCols);
+    const data = { brand, model };
+    YEAR_KEYS.forEach((yk, offset) => {
+      data[yk] = offset < yearFieldsAvailable ? parseRMValue(f[idx + offset] || '') : 0;
+    });
+    rows.push(data);
+  }
+  return rows;
+}
+
+async function importUsedCSV() {
+  const fileInput = document.getElementById('usedCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseAeonCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將匯入 ${rows.length} 筆二手車行情資料（同品牌+型號會覆蓋原本資料）。確定繼續嗎？`)) return;
+
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => {
+        batch.set(doc(db, USED_MOTO_COLLECTION, docIdFor(r.brand, r.model)), r);
+      });
+      await batch.commit();
+    }
+    showToast(`匯入完成：共 ${rows.length} 筆二手車行情資料已更新。`);
+    fileInput.value = '';
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportUsedCSV() {
+  const header = ['brand', 'model', ...YEAR_KEYS];
+  const lines = [header.join(',')];
+  usedMotoCache.forEach(m => {
+    lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `used-moto-price-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// TRADE-IN MARGIN SETTING
+// ================================================================
+function listenTradeInSettings() {
+  if (unsubscribeSettings) return;
+  const { doc, onSnapshot } = window.__fsMod;
+  unsubscribeSettings = onSnapshot(doc(db, TRADE_IN_SETTINGS_PATH), (snap) => {
+    const data = snap.exists() ? snap.data() : null;
+    const pct = (data && typeof data.marginPercent === 'number') ? data.marginPercent : 15;
+    document.getElementById('marginPercentInput').value = pct;
+  }, (err) => {
+    showToast('讀取收購折讓設定失敗：' + err.message, true);
+  });
+}
+
+async function saveMarginSetting() {
+  const val = numOr0(document.getElementById('marginPercentInput').value);
+  if (val < 0 || val > 100) {
+    showToast('折讓百分比請輸入 0-100 之間的數字', true);
+    return;
+  }
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, TRADE_IN_SETTINGS_PATH), { marginPercent: val });
+    showToast(`已儲存收購折讓設定：${val}%`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+// ================================================================
+// UTILITIES
+// ================================================================
+function docIdFor(brand, model) {
+  const slug = s => String(s).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return `${slug(brand)}__${slug(model)}`;
+}
+
+function numOr0(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-sm font-bold shadow-lg z-50 ${isError ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`;
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+}
+</script>
+</body>
+</html>
