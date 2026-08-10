@@ -1511,9 +1511,11 @@ function calcUsed() {
   }
   if (baseValue === 0) { alert(t.alertNoUsedData); return; }
 
-  // Buy-in margin — admin-configurable percentage, intentionally not shown
-  // on screen (only the resulting RM deduction is displayed).
-  const marginAmount = Math.round(baseValue * (tradeInMarginPercent / 100));
+  // Buy-in margin — each model can have its own admin-set percentage;
+  // models without one fall back to the site-wide default. Intentionally
+  // not shown on screen (only the resulting RM deduction is displayed).
+  const effectiveMarginPercent = typeof moto.marginPercent === 'number' ? moto.marginPercent : tradeInMarginPercent;
+  const marginAmount = Math.round(baseValue * (effectiveMarginPercent / 100));
   const afterMargin = baseValue - marginAmount;
 
   // Grade Repair Fee Deductions

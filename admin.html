@@ -42,6 +42,17 @@
       outline: none;
     }
     .hidden { display: none !important; }
+
+    .admin-tab-btn {
+      transition: all 0.2s ease;
+    }
+    .admin-tab-btn.active {
+      background-color: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+    }
+    .admin-tab-panel { display: none; }
+    .admin-tab-panel.active { display: block; }
   </style>
 </head>
 <body class="antialiased">
@@ -86,6 +97,19 @@
 
     <!-- ADMIN VIEW -->
     <div id="adminView" class="hidden">
+
+      <!-- Admin Tabs -->
+      <div class="flex justify-center mb-8">
+        <div class="bg-slate-200/60 rounded-2xl p-1 flex gap-1 border border-slate-300/30">
+          <button id="adminTabNew" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('new')">新車價格管理</button>
+          <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車行情管理</button>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- NEW BIKE TAB                                                  -->
+      <!-- ============================================================ -->
+      <section id="adminPanelNew" class="admin-tab-panel active">
 
       <!-- Import / Export -->
       <div class="card-light rounded-2xl p-6 mb-6">
@@ -150,24 +174,47 @@
           </table>
         </div>
       </div>
+      </section>
 
       <!-- ============================================================ -->
-      <!-- USED BIKE (TRADE-IN) SECTION                                 -->
+      <!-- USED BIKE (TRADE-IN) TAB                                      -->
       <!-- ============================================================ -->
-      <h2 class="text-sm font-black uppercase tracking-wide text-slate-400 mb-3">二手車收購行情（Aeon 對照表）</h2>
+      <section id="adminPanelUsed" class="admin-tab-panel">
 
-      <!-- Margin Setting -->
+      <!-- Default Margin Setting -->
       <div class="card-light rounded-2xl p-6 mb-6">
         <h2 class="text-base font-bold mb-1 flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
-          收購折讓設定
+          預設收購折讓 %
         </h2>
-        <p class="text-xs text-slate-500 mb-4">二手車估價會先用對照表查出該車齡的行情價，再扣掉這個百分比當作收購折讓空間，才是實際開給客戶的收購價。這個數字不會顯示在二手車估價畫面上。</p>
+        <p class="text-xs text-slate-500 mb-4">二手車估價會先用對照表查出該車齡的行情價，再扣掉折讓百分比當作收購折讓空間，才是實際開給客戶的收購價（這個數字不會顯示在二手車估價畫面上）。每個車款可以有自己專屬的折讓 %，這裡設定的是還沒單獨設定過的車款要用的預設值。</p>
         <div class="flex items-center gap-3">
           <input id="marginPercentInput" type="number" step="0.5" min="0" max="100" class="form-ctrl w-28 rounded-xl px-3 py-2 text-sm" placeholder="15" />
           <span class="text-sm text-slate-500">%</span>
-          <button onclick="saveMarginSetting()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">儲存設定</button>
+          <button onclick="saveMarginSetting()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">儲存預設值</button>
         </div>
+      </div>
+
+      <!-- Single Model Margin Editor -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+          單一車款折讓調整
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">選擇特定品牌與型號，單獨調整這台車的收購折讓 %（會覆蓋上面的預設值）。</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+          <select id="marginBrandSelect" class="form-ctrl rounded-xl px-3 py-2 text-xs" onchange="onMarginBrandChange()">
+            <option value="">— 選擇品牌 —</option>
+          </select>
+          <select id="marginModelSelect" class="form-ctrl rounded-xl px-3 py-2 text-xs" disabled onchange="onMarginModelChange()">
+            <option value="">— 請先選擇品牌 —</option>
+          </select>
+          <div class="flex items-center gap-2">
+            <input id="marginModelPercentInput" type="number" step="0.5" min="0" max="100" class="form-ctrl w-24 rounded-xl px-3 py-2 text-sm" disabled />
+            <span class="text-sm text-slate-500">%</span>
+          </div>
+        </div>
+        <button id="saveModelMarginBtn" onclick="saveModelMargin()" disabled class="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white disabled:bg-slate-200 disabled:text-slate-400 transition-all">儲存此車款折讓</button>
       </div>
 
       <!-- Import / Export -->
@@ -210,6 +257,7 @@
                 <th class="text-right px-2 py-3 font-bold">Y7</th>
                 <th class="text-right px-2 py-3 font-bold">Y8</th>
                 <th class="text-right px-2 py-3 font-bold">Y9</th>
+                <th class="text-right px-2 py-3 font-bold">折讓%</th>
                 <th class="text-left px-2 py-3 font-bold">操作</th>
               </tr>
             </thead>
@@ -217,6 +265,7 @@
           </table>
         </div>
       </div>
+      </section>
     </div>
   </main>
 </div>
@@ -262,6 +311,15 @@ async function initFirebase() {
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
+
+function switchAdminTab(tab) {
+  ['new', 'used'].forEach(t => {
+    const btn = document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const panel = document.getElementById('adminPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+    btn.classList.toggle('active', t === tab);
+    panel.classList.toggle('active', t === tab);
+  });
+}
 
 function renderAuthState(user) {
   document.getElementById('loginView').classList.toggle('hidden', !!user);
@@ -583,6 +641,7 @@ function listenUsedMotoData() {
     usedMotoCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     usedMotoCache.sort((a, b) => (a.brand + a.model).localeCompare(b.brand + b.model));
     renderUsedTable();
+    populateMarginBrandSelect();
   }, (err) => {
     showToast('讀取二手車資料失敗：' + err.message, true);
   });
@@ -645,16 +704,18 @@ function renderUsedTable() {
   if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedUsedMotoIds.has(m.id));
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-400 text-xs">${usedMotoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入 Aeon 對照表。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-slate-400 text-xs">${usedMotoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入 Aeon 對照表。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
     return;
   }
 
+  const defaultMargin = numOr0(document.getElementById('marginPercentInput').value) || 15;
   tbody.innerHTML = filtered.map(m => `
     <tr data-id="${m.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
       <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedUsedMotoIds.has(m.id) ? 'checked' : ''} onchange="toggleUsedMotoSelect('${m.id}', this.checked)"></td>
       <td class="px-2 py-2"><input class="uf-brand form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
       <td class="px-2 py-2"><input class="uf-model form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
       ${YEAR_KEYS.map(yk => `<td class="px-1 py-2"><input type="number" class="uf-${yk} form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-[11px] text-right" value="${numOr0(m[yk])}"></td>`).join('')}
+      <td class="px-1 py-2"><input type="number" step="0.5" class="uf-marginPercent form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-[11px] text-right" value="${typeof m.marginPercent === 'number' ? m.marginPercent : defaultMargin}"></td>
       <td class="px-2 py-2 whitespace-nowrap">
         <button onclick="saveUsedRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
         <button onclick="deleteUsedRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
@@ -667,6 +728,7 @@ function readUsedRowData(tr) {
   const data = {
     brand: tr.querySelector('.uf-brand').value.trim(),
     model: tr.querySelector('.uf-model').value.trim(),
+    marginPercent: numOr0(tr.querySelector('.uf-marginPercent').value),
   };
   YEAR_KEYS.forEach(yk => { data[yk] = numOr0(tr.querySelector(`.uf-${yk}`).value); });
   return data;
@@ -776,7 +838,13 @@ async function importUsedCSV() {
     showToast('沒有解析到任何有效的資料列', true);
     return;
   }
-  if (!confirm(`即將匯入 ${rows.length} 筆二手車行情資料（同品牌+型號會覆蓋原本資料）。確定繼續嗎？`)) return;
+  if (!confirm(`即將匯入 ${rows.length} 筆二手車行情資料（同品牌+型號會覆蓋原本資料，但已個別設定過的收購折讓 % 會保留）。確定繼續嗎？`)) return;
+
+  // Re-importing updates Year values but must not wipe out a per-model
+  // margin % that was already set individually — carry it over from the
+  // existing record, falling back to the default margin for brand-new rows.
+  const existingById = new Map(usedMotoCache.map(m => [m.id, m]));
+  const defaultMargin = numOr0(document.getElementById('marginPercentInput').value) || 15;
 
   const { doc, writeBatch } = window.__fsMod;
   const CHUNK = 400;
@@ -784,7 +852,10 @@ async function importUsedCSV() {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const batch = writeBatch(db);
       rows.slice(i, i + CHUNK).forEach(r => {
-        batch.set(doc(db, USED_MOTO_COLLECTION, docIdFor(r.brand, r.model)), r);
+        const id = docIdFor(r.brand, r.model);
+        const existing = existingById.get(id);
+        const marginPercent = existing && typeof existing.marginPercent === 'number' ? existing.marginPercent : defaultMargin;
+        batch.set(doc(db, USED_MOTO_COLLECTION, id), { ...r, marginPercent });
       });
       await batch.commit();
     }
@@ -834,7 +905,75 @@ async function saveMarginSetting() {
   const { doc, setDoc } = window.__fsMod;
   try {
     await setDoc(doc(db, TRADE_IN_SETTINGS_PATH), { marginPercent: val });
-    showToast(`已儲存收購折讓設定：${val}%`);
+    showToast(`已儲存預設收購折讓：${val}%`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+// ================================================================
+// SINGLE-MODEL MARGIN EDITOR
+// ================================================================
+function populateMarginBrandSelect() {
+  const sel = document.getElementById('marginBrandSelect');
+  const prevBrand = sel.value;
+  const brands = [...new Set(usedMotoCache.map(m => m.brand).filter(Boolean))].sort();
+  sel.innerHTML = `<option value="">— 選擇品牌 —</option>` + brands.map(b => `<option value="${escapeAttr(b)}">${escapeAttr(b)}</option>`).join('');
+  if (prevBrand && brands.includes(prevBrand)) {
+    sel.value = prevBrand;
+    onMarginBrandChange();
+  }
+}
+
+function onMarginBrandChange() {
+  const brand = document.getElementById('marginBrandSelect').value;
+  const modelSel = document.getElementById('marginModelSelect');
+  const pctInput = document.getElementById('marginModelPercentInput');
+  const saveBtn = document.getElementById('saveModelMarginBtn');
+  if (!brand) {
+    modelSel.innerHTML = `<option value="">— 請先選擇品牌 —</option>`;
+    modelSel.disabled = true;
+    pctInput.disabled = true;
+    saveBtn.disabled = true;
+    return;
+  }
+  const models = usedMotoCache.filter(m => m.brand === brand).map(m => m.model).sort();
+  modelSel.innerHTML = `<option value="">— 選擇型號 —</option>` + models.map(m => `<option value="${escapeAttr(m)}">${escapeAttr(m)}</option>`).join('');
+  modelSel.disabled = false;
+  pctInput.disabled = true;
+  saveBtn.disabled = true;
+}
+
+function onMarginModelChange() {
+  const brand = document.getElementById('marginBrandSelect').value;
+  const model = document.getElementById('marginModelSelect').value;
+  const pctInput = document.getElementById('marginModelPercentInput');
+  const saveBtn = document.getElementById('saveModelMarginBtn');
+  if (!model) {
+    pctInput.disabled = true;
+    saveBtn.disabled = true;
+    return;
+  }
+  const rec = usedMotoCache.find(m => m.brand === brand && m.model === model);
+  const defaultVal = numOr0(document.getElementById('marginPercentInput').value) || 15;
+  pctInput.value = rec && typeof rec.marginPercent === 'number' ? rec.marginPercent : defaultVal;
+  pctInput.disabled = false;
+  saveBtn.disabled = false;
+}
+
+async function saveModelMargin() {
+  const brand = document.getElementById('marginBrandSelect').value;
+  const model = document.getElementById('marginModelSelect').value;
+  const val = numOr0(document.getElementById('marginModelPercentInput').value);
+  if (!brand || !model) return;
+  if (val < 0 || val > 100) {
+    showToast('折讓百分比請輸入 0-100 之間的數字', true);
+    return;
+  }
+  const { doc, updateDoc } = window.__fsMod;
+  try {
+    await updateDoc(doc(db, USED_MOTO_COLLECTION, docIdFor(brand, model)), { marginPercent: val });
+    showToast(`已更新 ${brand} ${model} 的收購折讓為 ${val}%`);
   } catch (err) {
     showToast('儲存失敗：' + err.message, true);
   }
