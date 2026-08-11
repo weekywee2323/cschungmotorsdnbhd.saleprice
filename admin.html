@@ -309,7 +309,7 @@
           <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
           匯入二手車庫存資料
         </h2>
-        <p class="text-xs text-slate-500 mb-4">CSV 欄位：機車車牌, 品牌, 機車型號, 製造年份, 買入價格, 顏色, 買入日期（含標題列，格式自動辨識）。同車牌的資料會覆蓋，但已經在下面表格設定過的賣價/保險/路稅/車牌費不會被覆蓋。買入價格只有後台看得到，計算機跟查價格頁面都不會顯示。</p>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：機車車牌, 品牌, 機車型號, 製造年份, 買入價格, 顏色, 買入日期（含標題列，格式自動辨識）。同車牌的資料會覆蓋，但已經在下面表格設定過的賣價/保險/路稅/車牌費不會被覆蓋。買入價格會顯示在「二手車查價格」頁面給業務參考成本，「二手車定價」頁面則是業務自己輸入成交價，不會用到這個買入價格。</p>
         <div class="flex flex-wrap items-center gap-3">
           <input id="inventoryCsvFileInput" type="file" accept=".csv" class="text-xs" />
           <button onclick="importInventoryCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>

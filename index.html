@@ -881,7 +881,7 @@
           </h3>
           <input id="usedLookupSearchInput" type="text" placeholder="搜尋車牌、品牌或型號…" class="form-ctrl rounded-xl px-4 py-2 text-sm w-full sm:w-64" oninput="renderUsedLookupTable()" />
         </div>
-        <p class="text-xs text-slate-500 mb-5">店內現有二手車庫存賣價，方便業務快速查詢。</p>
+        <p class="text-xs text-slate-500 mb-5">店內現有二手車庫存價格，方便業務查詢後自行決定成交價（於「二手車定價」頁面輸入）。</p>
 
         <div class="overflow-x-auto rounded-xl border border-slate-200">
           <table class="w-full text-sm">
@@ -892,7 +892,7 @@
                 <th class="text-left px-4 py-3 font-bold">型號</th>
                 <th class="text-right px-4 py-3 font-bold">年份</th>
                 <th class="text-left px-4 py-3 font-bold">顏色</th>
-                <th class="text-right px-4 py-3 font-bold">賣價 (RM)</th>
+                <th class="text-right px-4 py-3 font-bold">價格 (RM)</th>
               </tr>
             </thead>
             <tbody id="usedLookupTableBody"></tbody>
@@ -1545,9 +1545,11 @@ function applyUsedMotoDataUpdate() {
   if (lastCalculatedTradeInVal > 0) calcUsed();
 }
 
-// Rebuilds the Used Sale brand/unit dropdowns from the store's own
-// inventory — only units with a sellingPrice set by the admin are shown,
-// since an unpriced unit isn't ready to quote to a customer yet.
+// Refreshes everything driven by the store's used-bike inventory: the
+// plate autocomplete list on the pricing tab (every unit, regardless of
+// whether it has a price yet — the salesman can quote one on the spot)
+// and the price lookup table (cost price, so a salesman can see what the
+// shop paid before deciding what to sell it for).
 function applyUsedInventoryUpdate() {
   populateUsedSalePlateList();
 
@@ -1676,7 +1678,7 @@ function renderUsedLookupTable() {
   const q = (document.getElementById('usedLookupSearchInput').value || '').trim().toLowerCase();
   const tbody = document.getElementById('usedLookupTableBody');
   const rows = usedInventoryData
-    .filter(u => (u.sellingPrice || 0) > 0)
+    .filter(u => (u.costPrice || 0) > 0)
     .filter(u => !q || `${u.plateNo} ${u.brand} ${u.model}`.toLowerCase().includes(q))
     .sort((a, b) => `${a.brand}${a.model}`.localeCompare(`${b.brand}${b.model}`));
 
@@ -1692,7 +1694,7 @@ function renderUsedLookupTable() {
       <td class="px-4 py-3 text-slate-700">${u.model || ''}</td>
       <td class="px-4 py-3 text-right text-slate-600">${u.year || ''}</td>
       <td class="px-4 py-3 text-slate-600">${u.colour || ''}</td>
-      <td class="px-4 py-3 text-right font-black text-emerald-600">${fmt(u.sellingPrice || 0)}</td>
+      <td class="px-4 py-3 text-right font-black text-emerald-600">${fmt(u.costPrice || 0)}</td>
     </tr>
   `).join('');
 }
