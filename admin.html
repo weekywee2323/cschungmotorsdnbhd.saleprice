@@ -296,6 +296,10 @@
             <span class="text-xs text-slate-500 shrink-0">% 折扣上限</span>
           </div>
         </div>
+        <label class="flex items-center gap-2 mt-4 cursor-pointer">
+          <input type="checkbox" id="newStaffIsAdminInput" />
+          <span class="text-xs text-slate-600">允許這個帳號登入後台管理系統（一般員工請勿勾選，只給信任的管理人員）</span>
+        </label>
         <button onclick="addStaffAccount()" class="mt-4 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增員工帳號</button>
       </div>
 
@@ -313,6 +317,7 @@
                 <th class="text-left px-3 py-3 font-bold">登入帳號 (ID)</th>
                 <th class="text-left px-3 py-3 font-bold">顯示名稱</th>
                 <th class="text-right px-3 py-3 font-bold">折扣上限 %</th>
+                <th class="text-center px-3 py-3 font-bold">後台權限</th>
                 <th class="text-left px-3 py-3 font-bold">操作</th>
               </tr>
             </thead>
@@ -358,14 +363,35 @@ async function initFirebase() {
   auth = authMod.getAuth(app);
   db = fsMod.getFirestore(app);
 
-  authMod.onAuthStateChanged(auth, (user) => {
-    renderAuthState(user);
-    if (user) {
-      listenMotoData();
-      listenUsedMotoData();
-      listenTradeInSettings();
-      listenStaffData();
+  authMod.onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      renderAuthState(null);
+      return;
     }
+    // A staff record with isAdmin explicitly set to false is denied.
+    // No record at all (e.g. this project's very first account, created
+    // directly in the Firebase console before "staff" existed) is allowed
+    // through, so nobody gets locked out of their own admin panel.
+    try {
+      const snap = await fsMod.getDoc(fsMod.doc(db, STAFF_COLLECTION, user.uid));
+      if (snap.exists() && snap.data().isAdmin === false) {
+        document.getElementById('loginError').textContent = '這個帳號沒有後台管理權限，請聯絡管理員。';
+        document.getElementById('loginError').classList.remove('hidden');
+        await authMod.signOut(auth);
+        return;
+      }
+    } catch (err) {
+      document.getElementById('loginError').textContent = '權限驗證失敗：' + err.message;
+      document.getElementById('loginError').classList.remove('hidden');
+      await authMod.signOut(auth);
+      return;
+    }
+
+    renderAuthState(user);
+    listenMotoData();
+    listenUsedMotoData();
+    listenTradeInSettings();
+    listenStaffData();
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
@@ -1058,7 +1084,7 @@ function renderStaffTable() {
   const tbody = document.getElementById('staffTableBody');
 
   if (staffCache.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 text-xs">目前沒有員工帳號，請先在上面新增一個。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">目前沒有員工帳號，請先在上面新增一個。</td></tr>`;
     return;
   }
 
@@ -1067,6 +1093,7 @@ function renderStaffTable() {
       <td class="px-3 py-2 font-bold text-slate-700">${escapeAttr(s.id || '')}</td>
       <td class="px-3 py-2"><input class="sf-displayName form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(s.displayName || '')}"></td>
       <td class="px-3 py-2"><input type="number" step="0.5" class="sf-maxDiscount form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(s.maxDiscountPercent)}"></td>
+      <td class="px-3 py-2 text-center"><input type="checkbox" class="sf-isAdmin" ${s.isAdmin ? 'checked' : ''}></td>
       <td class="px-3 py-2 whitespace-nowrap">
         <button onclick="saveStaffRow('${s.uid}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
         <button onclick="removeStaffAccess('${s.uid}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">移除權限</button>
@@ -1080,13 +1107,14 @@ async function saveStaffRow(uid) {
   if (!tr) return;
   const displayName = tr.querySelector('.sf-displayName').value.trim();
   const maxDiscountPercent = numOr0(tr.querySelector('.sf-maxDiscount').value);
+  const isAdmin = tr.querySelector('.sf-isAdmin').checked;
   if (maxDiscountPercent < 0 || maxDiscountPercent > 100) {
     showToast('折扣上限請輸入 0-100 之間的數字', true);
     return;
   }
   const { doc, updateDoc } = window.__fsMod;
   try {
-    await updateDoc(doc(db, STAFF_COLLECTION, uid), { displayName, maxDiscountPercent });
+    await updateDoc(doc(db, STAFF_COLLECTION, uid), { displayName, maxDiscountPercent, isAdmin });
     showToast('已儲存。');
   } catch (err) {
     showToast('儲存失敗：' + err.message, true);
@@ -1146,6 +1174,7 @@ async function addStaffAccount() {
   const password = document.getElementById('newStaffPasswordInput').value;
   const displayName = document.getElementById('newStaffNameInput').value.trim();
   const maxDiscountPercent = numOr0(document.getElementById('newStaffDiscountInput').value);
+  const isAdmin = document.getElementById('newStaffIsAdminInput').checked;
 
   if (!id || !password) {
     showToast('請輸入帳號與密碼', true);
@@ -1164,11 +1193,12 @@ async function addStaffAccount() {
     const { uid, linked } = await createOrLinkStaffAuthAccount(toLoginEmail(id), password);
     const { doc, setDoc } = window.__fsMod;
     await setDoc(doc(db, STAFF_COLLECTION, uid), {
-      id, displayName: displayName || id, maxDiscountPercent, createdAt: Date.now(),
+      id, displayName: displayName || id, maxDiscountPercent, isAdmin, createdAt: Date.now(),
     });
     showToast(linked ? `已將既有帳號「${id}」設定為員工權限：折扣上限 ${maxDiscountPercent}%` : `已新增員工帳號：${id}`);
     ['newStaffIdInput', 'newStaffPasswordInput', 'newStaffNameInput', 'newStaffDiscountInput']
       .forEach(fid => document.getElementById(fid).value = '');
+    document.getElementById('newStaffIsAdminInput').checked = false;
   } catch (err) {
     showToast('新增失敗：' + describeAuthError(err), true);
   }
