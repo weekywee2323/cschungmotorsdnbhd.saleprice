@@ -283,14 +283,22 @@
 
     <!-- TABS -->
     <div class="flex justify-center mb-8 anim-up">
-      <div class="bg-slate-200/60 backdrop-blur rounded-2xl p-1 flex gap-1 border border-slate-300/30">
+      <div class="bg-slate-200/60 backdrop-blur rounded-2xl p-1 flex flex-wrap justify-center gap-1 border border-slate-300/30">
         <button id="tabNew" class="tab-btn active flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('new')">
           <svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
           <span data-i18n="tabNew">新車定價</span>
         </button>
+        <button id="tabUsedSale" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('usedSale')">
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM3 6h13l3 5v6h-2m-9 0H5V6"/></svg>
+          <span>二手車定價</span>
+        </button>
         <button id="tabUsed" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('used')">
           <svg class="w-4 h-4 text-accent-red" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           <span data-i18n="tabUsed">二手車買入估價 (Trade-In)</span>
+        </button>
+        <button id="tabUsedLookup" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('usedLookup')">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <span>二手車查價格</span>
         </button>
         <button id="tabLoan" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('loan')">
           <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
@@ -341,16 +349,16 @@
           <input id="newSellingPrice" type="number" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-1" oninput="onSellingPriceInput()" placeholder="選擇車型後自動帶入官方售價" />
           <p id="sellingPriceHint" class="text-[10px] text-slate-400 mb-4">選擇車型後會顯示可議價範圍</p>
 
+          <!-- Down Payment -->
+          <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
+          <input id="newDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onNewInputChange()" />
+
           <!-- Insurance Type -->
           <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelInsurance">保險類型</label>
           <select id="newInsurance" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none" onchange="onNewInputChange()">
             <option value="3rd" data-i18n="ins3rd">三號保險 (Third Party)</option>
             <option value="1st" data-i18n="ins1st">一號保險 (First Party)</option>
           </select>
-
-          <!-- Down Payment -->
-          <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
-          <input id="newDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onNewInputChange()" />
 
           <!-- Extra Fees Checkboxes -->
           <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-3">
@@ -536,6 +544,194 @@
     </section>
 
     <!-- ============================================================ -->
+    <!-- PANEL: USED CAR SALE (store's own used-bike inventory)       -->
+    <!-- ============================================================ -->
+    <section id="panelUsedSale" class="tab-panel">
+      <div class="grid lg:grid-cols-5 gap-6">
+        <!-- INPUT CARD -->
+        <div class="lg:col-span-2 card-light rounded-2xl p-6 sm:p-7">
+          <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+            二手車查詢
+          </h3>
+          <p class="text-xs text-slate-500 mb-5">選擇店內現有二手車庫存以查詢定價</p>
+
+          <label class="block mb-1 text-xs font-bold text-slate-600">品牌</label>
+          <select id="usedSaleBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onUsedSaleBrandChange()">
+            <option value="">— 請選擇 —</option>
+          </select>
+
+          <label class="block mb-1 text-xs font-bold text-slate-600">車輛（型號 / 車牌）</label>
+          <select id="usedSaleUnit" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onUsedSaleInputChange()">
+            <option value="">— 請先選擇品牌 —</option>
+          </select>
+
+          <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
+          <input id="usedSaleDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onUsedSaleInputChange()" />
+
+          <label class="block mb-1 text-xs font-bold text-slate-600">保險類型</label>
+          <select id="usedSaleInsurance" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none" onchange="onUsedSaleInputChange()">
+            <option value="3rd">三號保險 (Third Party)</option>
+            <option value="1st">一號保險 (First Party)</option>
+          </select>
+
+          <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-3">
+            <p class="text-xs font-bold text-slate-700 mb-1">額外費用</p>
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="usedSaleChkPlate" class="chk-box" onchange="onUsedSaleInputChange()" />
+              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">預定車牌費</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="usedSaleChkRunner" class="chk-box" onchange="onUsedSaleInputChange()" />
+              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">標車牌人工費</span>
+            </label>
+          </div>
+
+          <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcUsedSale()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            查詢定價
+          </button>
+        </div>
+
+        <!-- RESULT CARD -->
+        <div class="lg:col-span-3 card-light rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+              定價結果
+            </h3>
+
+            <!-- Trade-In Applied Badge -->
+            <div id="usedSaleTradeInBadge" class="hidden mb-4 px-4 py-3 rounded-xl border flex items-center justify-between gap-3 shadow-sm"
+              style="background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%); border-color: #6ee7b7; animation: badgeSlideIn 0.35s ease forwards;">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs shrink-0">✓</span>
+                <div class="min-w-0">
+                  <p class="text-[10px] uppercase font-black tracking-wider text-emerald-700">Trade-In 舊車估價折抵已成功帶入</p>
+                  <p class="text-sm font-extrabold text-emerald-900 truncate" id="usedSaleTradeInBadgeAmt">RM 0</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="switchTab('used')" title="重新計算 Trade-In"
+                  class="px-2.5 h-7 rounded-full bg-white/70 hover:bg-white text-emerald-800 border border-emerald-300 font-bold text-[11px] flex items-center justify-center gap-1 transition-all active:scale-95">
+                  <span>↺</span> 重新計算
+                </button>
+                <button onclick="clearTradeInUsedSale()" title="取消 Trade-In 折抵"
+                  class="px-2.5 h-7 rounded-full bg-emerald-200 hover:bg-emerald-300 text-emerald-800 font-black text-[11px] flex items-center justify-center transition-all active:scale-95">取消 ×</button>
+              </div>
+            </div>
+
+            <div id="usedSaleSelectedInfo" class="hidden mb-5 px-4 py-3 rounded-xl bg-emerald-50/50 border border-emerald-100">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-[10px] uppercase font-bold text-slate-400">已選車輛</p>
+                  <p class="text-sm font-extrabold text-slate-800" id="usedSaleSelectedName">—</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[10px] uppercase font-bold text-slate-400">保險類型</p>
+                  <p class="text-sm font-bold text-emerald-600" id="usedSaleSelectedIns">—</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200 mb-4">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                    <th class="text-left px-5 py-3 font-bold">項目</th>
+                    <th class="text-right px-5 py-3 font-bold">金額 (RM)</th>
+                  </tr>
+                </thead>
+                <tbody id="usedSaleResultBody">
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      賣價
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-emerald-600" id="usedSaleValPrice">—</td>
+                  </tr>
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                      預估保險費
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-sky-600" id="usedSaleValInsurance">—</td>
+                  </tr>
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      路稅
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-amber-600" id="usedSaleValRoadTax">—</td>
+                  </tr>
+                  <tr class="res-row dimmed border-b border-slate-200" id="usedSaleRowPlate">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                      預定車牌費
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-violet-600" id="usedSaleValPlate">—</td>
+                  </tr>
+                  <tr class="res-row dimmed border-b border-slate-200" id="usedSaleRowRunner">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      標車牌人工費
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-rose-600" id="usedSaleValRunner">—</td>
+                  </tr>
+                  <tr class="res-row border-b border-slate-200 bg-slate-50/50">
+                    <td class="px-5 py-3.5 text-slate-800 font-bold flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      辦到好預估總價 (OTR)
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-bold text-slate-800" id="usedSaleValOTR">—</td>
+                  </tr>
+                  <tr id="usedSaleRowDownPayment" class="res-row hidden" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);">
+                    <td class="px-5 py-3.5 font-black flex items-center gap-2 text-rose-600">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                      減：頭期款 (Down Payment)
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-black text-lg text-rose-600" id="usedSaleValDownPayment">- RM 0</td>
+                  </tr>
+                  <tr id="usedSaleRowDeduction" class="res-row hidden" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);">
+                    <td class="px-5 py-3.5 font-black flex items-center gap-2 text-rose-600">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                      減：舊車回收折抵金額 (Trade-In Discount)
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-black text-lg text-rose-600" id="usedSaleValDeduction">- RM 0</td>
+                  </tr>
+                  <tr id="usedSaleRowEqLine" class="hidden">
+                    <td colspan="2" class="px-5 py-1.5 bg-emerald-50 border-y border-dashed border-emerald-300 text-[10px] font-black text-emerald-700 tracking-wider uppercase">
+                      = 最終需補差額 / 實際付款金額 (Final Amount To Pay)
+                    </td>
+                  </tr>
+                  <tr id="usedSaleRowNetPayMain" class="res-row border-t-2 border-emerald-500/30 bg-emerald-50/30">
+                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-emerald-600 shadow-sm"></span>
+                      應付金額
+                    </td>
+                    <td class="px-5 py-4 text-right font-black text-2xl text-emerald-600" id="usedSaleValNetPay">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="usedSaleLoanAction" class="hidden mt-4">
+              <button onclick="sendToLoanCalculator()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-indigo-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                <span id="usedSaleLoanActionText">⚡ 帶入此金額至【借貸計算器】試算</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
+            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            以上價格僅供參考，實際價格請以門市報價為準。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
     <!-- PANEL: USED TRADE-IN (Tab 2)                                 -->
     <!-- ============================================================ -->
     <section id="panelUsed" class="tab-panel">
@@ -679,11 +875,15 @@
               </table>
             </div>
 
-            <!-- Apply to New Bike Action button -->
-            <div id="usedApplyAction" class="hidden">
+            <!-- Apply to New Bike / Used Sale Action buttons -->
+            <div id="usedApplyAction" class="hidden space-y-2">
               <button onclick="applyTradeInToNewBike()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7M5 12h14"/></svg>
                 <span data-i18n="applyTradeInToNewBike">帶入此回收價至新車計算 (Apply to New Bike)</span>
+              </button>
+              <button onclick="applyTradeInToUsedSale()" class="w-full bg-white border-2 border-emerald-600 hover:bg-emerald-50 text-emerald-700 py-3 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7M5 12h14"/></svg>
+                帶入此回收價至二手車定價 (Apply to Used Sale)
               </button>
             </div>
           </div>
@@ -692,6 +892,38 @@
             <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PANEL: USED CAR PRICE LOOKUP (read-only reference for staff) -->
+    <!-- ============================================================ -->
+    <section id="panelUsedLookup" class="tab-panel">
+      <div class="card-light rounded-2xl p-6 sm:p-7">
+        <div class="flex items-center justify-between mb-1 flex-wrap gap-3">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            二手車查價格
+          </h3>
+          <input id="usedLookupSearchInput" type="text" placeholder="搜尋車牌、品牌或型號…" class="form-ctrl rounded-xl px-4 py-2 text-sm w-full sm:w-64" oninput="renderUsedLookupTable()" />
+        </div>
+        <p class="text-xs text-slate-500 mb-5">店內現有二手車庫存賣價，方便業務快速查詢。</p>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                <th class="text-left px-4 py-3 font-bold">車牌</th>
+                <th class="text-left px-4 py-3 font-bold">品牌</th>
+                <th class="text-left px-4 py-3 font-bold">型號</th>
+                <th class="text-right px-4 py-3 font-bold">年份</th>
+                <th class="text-left px-4 py-3 font-bold">顏色</th>
+                <th class="text-right px-4 py-3 font-bold">賣價 (RM)</th>
+              </tr>
+            </thead>
+            <tbody id="usedLookupTableBody"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -842,6 +1074,10 @@ let brandMap = {};          // { Brand: [model1, model2, ...] }
 
 let usedMotorcycleData = []; // Aeon used-bike age/value reference table, from Firestore only
 let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models present in the Aeon sheet
+
+let usedInventoryData = [];  // Store's own used-bike units for sale, from Firestore only
+let usedSaleBrandMap = {};   // { Brand: [unit1, unit2, ...] } — units with a sellingPrice set
+let lastUsedSaleCalc = null; // Cached selected used-sale unit object
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
 
@@ -1286,6 +1522,19 @@ async function fetchBikeData() {
           if (firstLoad) { firstLoad = false; resolve(); }
         });
       }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, USED_INVENTORY_COLLECTION), (snapshot) => {
+          usedInventoryData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          applyUsedInventoryUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 二手車庫存資料連線失敗：", err);
+          usedInventoryData = [];
+          applyUsedInventoryUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
     ]);
   } catch (err) {
     console.warn("Firebase 載入失敗，改用離線備援資料：", err);
@@ -1293,6 +1542,8 @@ async function fetchBikeData() {
     applyMotoDataUpdate();
     usedMotorcycleData = [];
     applyUsedMotoDataUpdate();
+    usedInventoryData = [];
+    applyUsedInventoryUpdate();
   }
 }
 
@@ -1320,6 +1571,213 @@ function applyUsedMotoDataUpdate() {
   usedBrandMap = buildBrandMap(usedMotorcycleData);
   refreshBrandDropdown('used');
   if (lastCalculatedTradeInVal > 0) calcUsed();
+}
+
+// Rebuilds the Used Sale brand/unit dropdowns from the store's own
+// inventory — only units with a sellingPrice set by the admin are shown,
+// since an unpriced unit isn't ready to quote to a customer yet.
+function applyUsedInventoryUpdate() {
+  usedSaleBrandMap = {};
+  usedInventoryData.filter(u => (u.sellingPrice || 0) > 0).forEach(u => {
+    if (!u.brand) return;
+    if (!usedSaleBrandMap[u.brand]) usedSaleBrandMap[u.brand] = [];
+    usedSaleBrandMap[u.brand].push(u);
+  });
+  Object.keys(usedSaleBrandMap).forEach(b => {
+    usedSaleBrandMap[b].sort((a, b2) => (a.model || '').localeCompare(b2.model || ''));
+  });
+  const sorted = {};
+  Object.keys(usedSaleBrandMap).sort().forEach(k => { sorted[k] = usedSaleBrandMap[k]; });
+  usedSaleBrandMap = sorted;
+
+  const brandEl = document.getElementById('usedSaleBrand');
+  const unitEl = document.getElementById('usedSaleUnit');
+  const brand = brandEl.value;
+  const unitId = unitEl.value;
+  populateUsedSaleBrands();
+  if (brand && usedSaleBrandMap[brand]) {
+    brandEl.value = brand;
+    onUsedSaleBrandChange();
+    if (unitId) unitEl.value = unitId;
+  }
+
+  if (lastUsedSaleCalc) {
+    const fresh = usedInventoryData.find(u => u.id === lastUsedSaleCalc.id);
+    if (fresh) { lastUsedSaleCalc = fresh; renderUsedSaleResults(); }
+  }
+
+  renderUsedLookupTable();
+}
+
+function populateUsedSaleBrands() {
+  const t = i18n[currentLang];
+  const sel = document.getElementById('usedSaleBrand');
+  sel.innerHTML = `<option value="">${t.phSelect}</option>`;
+  Object.keys(usedSaleBrandMap).forEach(b => {
+    sel.innerHTML += `<option value="${b}">${b}</option>`;
+  });
+  const unitSel = document.getElementById('usedSaleUnit');
+  unitSel.innerHTML = `<option value="">${t.phSelectBrandFirst}</option>`;
+  unitSel.disabled = true;
+}
+
+function onUsedSaleBrandChange() {
+  const t = i18n[currentLang];
+  const brand = document.getElementById('usedSaleBrand').value;
+  const unitSel = document.getElementById('usedSaleUnit');
+  if (!brand) {
+    unitSel.innerHTML = `<option value="">${t.phSelectBrandFirst}</option>`;
+    unitSel.disabled = true;
+    return;
+  }
+  const units = usedSaleBrandMap[brand] || [];
+  unitSel.innerHTML = `<option value="">${t.phSelect}</option>` +
+    units.map(u => `<option value="${u.id}">${u.model} — ${u.plateNo} (${u.year}, ${u.colour})</option>`).join('');
+  unitSel.disabled = false;
+}
+
+function onUsedSaleInputChange() {
+  if (lastUsedSaleCalc) renderUsedSaleResults();
+}
+
+function calcUsedSale() {
+  const brand = document.getElementById('usedSaleBrand').value;
+  const unitId = document.getElementById('usedSaleUnit').value;
+  if (!brand) { alert(i18n[currentLang].alertBrand); return; }
+  if (!unitId) { alert(i18n[currentLang].alertModel); return; }
+
+  const unit = usedInventoryData.find(u => u.id === unitId);
+  if (!unit) { alert(i18n[currentLang].alertModel); return; }
+
+  lastUsedSaleCalc = unit;
+  renderUsedSaleResults();
+}
+
+function renderUsedSaleResults() {
+  if (!lastUsedSaleCalc) return;
+  const unit = lastUsedSaleCalc;
+  const t = i18n[currentLang];
+  const insType = document.getElementById('usedSaleInsurance').value;
+  const chkPlate = document.getElementById('usedSaleChkPlate').checked;
+  const chkRunner = document.getElementById('usedSaleChkRunner').checked;
+
+  const price = unit.sellingPrice || 0;
+  const insurance = insType === '1st' ? (unit.ins1st || 0) : (unit.ins3rd || 0);
+  const plateVal = chkPlate ? (unit.plateBooking || 0) : 0;
+  const runnerVal = chkRunner ? (unit.runnerFee || 0) : 0;
+  const otr = price + insurance + (unit.roadTax || 0) + plateVal + runnerVal;
+
+  const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
+  const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
+  lastNetPayVal = netPay;
+
+  document.getElementById('usedSaleSelectedInfo').classList.remove('hidden');
+  document.getElementById('usedSaleSelectedName').textContent = `${unit.brand} ${unit.model} (${unit.plateNo})`;
+  document.getElementById('usedSaleSelectedIns').textContent = insType === '1st' ? t.ins1st : t.ins3rd;
+
+  document.getElementById('usedSaleValPrice').textContent = fmt(price);
+  document.getElementById('usedSaleValInsurance').textContent = fmt(insurance);
+  document.getElementById('usedSaleValRoadTax').textContent = fmt(unit.roadTax || 0);
+
+  const rowPlate = document.getElementById('usedSaleRowPlate');
+  const valPlateEl = document.getElementById('usedSaleValPlate');
+  if (chkPlate) {
+    rowPlate.classList.remove('dimmed');
+    valPlateEl.textContent = fmt(unit.plateBooking || 0);
+  } else {
+    rowPlate.classList.add('dimmed');
+    valPlateEl.textContent = '—';
+  }
+
+  const rowRunner = document.getElementById('usedSaleRowRunner');
+  const valRunnerEl = document.getElementById('usedSaleValRunner');
+  if (chkRunner) {
+    rowRunner.classList.remove('dimmed');
+    valRunnerEl.textContent = fmt(unit.runnerFee || 0);
+  } else {
+    rowRunner.classList.add('dimmed');
+    valRunnerEl.textContent = '—';
+  }
+
+  document.getElementById('usedSaleValOTR').textContent = fmt(otr);
+
+  const rowDownPayment = document.getElementById('usedSaleRowDownPayment');
+  if (downPayment > 0) {
+    rowDownPayment.classList.remove('hidden');
+    document.getElementById('usedSaleValDownPayment').textContent = `- ${fmt(downPayment)}`;
+  } else {
+    rowDownPayment.classList.add('hidden');
+  }
+
+  const rowDeduction = document.getElementById('usedSaleRowDeduction');
+  if (appliedTradeInVal > 0) {
+    rowDeduction.classList.remove('hidden');
+    document.getElementById('usedSaleValDeduction').textContent = `- ${fmt(appliedTradeInVal)}`;
+    document.getElementById('usedSaleTradeInBadgeAmt').textContent = `已成功帶入 Trade-In 舊車估價：${fmt(appliedTradeInVal)}`;
+    document.getElementById('usedSaleTradeInBadge').classList.remove('hidden');
+  } else {
+    rowDeduction.classList.add('hidden');
+    document.getElementById('usedSaleTradeInBadge').classList.add('hidden');
+  }
+
+  const rowEqLine = document.getElementById('usedSaleRowEqLine');
+  if (appliedTradeInVal > 0 || downPayment > 0) {
+    rowEqLine.classList.remove('hidden');
+  } else {
+    rowEqLine.classList.add('hidden');
+  }
+
+  document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
+
+  document.getElementById('usedSaleLoanAction').classList.remove('hidden');
+  document.getElementById('usedSaleLoanActionText').textContent = `⚡ 帶入此金額 (${fmt(netPay)}) 至【借貸計算器】試算`;
+
+  document.querySelectorAll('#usedSaleResultBody tr').forEach((row, i) => {
+    row.style.animation = 'none';
+    row.offsetHeight;
+    row.style.animation = `fadeUp 0.25s ease ${i * 0.03}s forwards`;
+    row.style.opacity = '0';
+  });
+
+  updateLoanButtonsState();
+}
+
+function applyTradeInToUsedSale() {
+  appliedTradeInVal = lastCalculatedTradeInVal;
+  switchTab('usedSale');
+  if (lastUsedSaleCalc) renderUsedSaleResults();
+}
+
+function clearTradeInUsedSale() {
+  appliedTradeInVal = 0;
+  document.getElementById('usedSaleTradeInBadge').classList.add('hidden');
+  if (lastUsedSaleCalc) renderUsedSaleResults();
+  if (lastNewCalc) renderNewResults();
+}
+
+function renderUsedLookupTable() {
+  const q = (document.getElementById('usedLookupSearchInput').value || '').trim().toLowerCase();
+  const tbody = document.getElementById('usedLookupTableBody');
+  const rows = usedInventoryData
+    .filter(u => (u.sellingPrice || 0) > 0)
+    .filter(u => !q || `${u.plateNo} ${u.brand} ${u.model}`.toLowerCase().includes(q))
+    .sort((a, b) => `${a.brand}${a.model}`.localeCompare(`${b.brand}${b.model}`));
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 text-xs">目前沒有符合的車輛。</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(u => `
+    <tr class="res-row border-b border-slate-200">
+      <td class="px-4 py-3 font-bold text-slate-700">${u.plateNo || ''}</td>
+      <td class="px-4 py-3 text-slate-700">${u.brand || ''}</td>
+      <td class="px-4 py-3 text-slate-700">${u.model || ''}</td>
+      <td class="px-4 py-3 text-right text-slate-600">${u.year || ''}</td>
+      <td class="px-4 py-3 text-slate-600">${u.colour || ''}</td>
+      <td class="px-4 py-3 text-right font-black text-emerald-600">${fmt(u.sellingPrice || 0)}</td>
+    </tr>
+  `).join('');
 }
 
 function buildBrandMap(data) {
@@ -1394,7 +1852,7 @@ function onBrandChange(section) {
 // TAB SWITCH NAVIGATION
 // ================================================================
 function switchTab(tab) {
-  const tabs = ['new', 'used', 'loan'];
+  const tabs = ['new', 'usedSale', 'used', 'usedLookup', 'loan'];
   tabs.forEach(t => {
     const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1820,6 +2278,9 @@ function clearTradeIn() {
   if (lastNewCalc) {
     renderNewResults();
   }
+  const saleBadge = document.getElementById('usedSaleTradeInBadge');
+  if (saleBadge) saleBadge.classList.add('hidden');
+  if (lastUsedSaleCalc) renderUsedSaleResults();
 }
 
 function recalcTradeIn() {

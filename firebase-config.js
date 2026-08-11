@@ -16,3 +16,4 @@ const MOTO_COLLECTION = "motorcycles";
 const USED_MOTO_COLLECTION = "usedMotorcycles";
 const TRADE_IN_SETTINGS_PATH = "settings/tradeInConfig";
 const STAFF_COLLECTION = "staff";
+const USED_INVENTORY_COLLECTION = "usedInventory";

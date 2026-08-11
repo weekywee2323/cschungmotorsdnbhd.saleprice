@@ -102,7 +102,8 @@
       <div class="flex justify-center mb-8">
         <div class="bg-slate-200/60 rounded-2xl p-1 flex gap-1 border border-slate-300/30">
           <button id="adminTabNew" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('new')">新車價格管理</button>
-          <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車行情管理</button>
+          <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車收購行情</button>
+          <button id="adminTabInventory" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('inventory')">二手車庫存管理</button>
           <button id="adminTabStaff" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('staff')">員工帳號管理</button>
         </div>
       </div>
@@ -269,6 +270,60 @@
       </section>
 
       <!-- ============================================================ -->
+      <!-- STORE USED-BIKE INVENTORY TAB (bikes we own & are selling)   -->
+      <!-- ============================================================ -->
+      <section id="adminPanelInventory" class="admin-tab-panel">
+
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          匯入二手車庫存資料
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：機車車牌, 品牌, 機車型號, 製造年份, 買入價格, 顏色, 買入日期（含標題列，格式自動辨識）。同車牌的資料會覆蓋，但已經在下面表格設定過的賣價/保險/路稅/車牌費不會被覆蓋。買入價格只有後台看得到，計算機跟查價格頁面都不會顯示。</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="inventoryCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importInventoryCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportInventoryCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+      </div>
+
+      <div class="card-light rounded-2xl p-6">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          目前庫存車輛（共 <span id="inventoryCount">0</span> 筆，即時同步）
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">「賣價」需要手動填寫才會出現在「二手車定價」跟「二手車查價格」頁面——賣價是 0 的車輛不會顯示給業務或客戶看到。</p>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <input id="inventorySearchInput" type="text" placeholder="搜尋車牌、品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onInventorySearchInput()" />
+          <button id="inventoryDeleteSelectedBtn" onclick="deleteSelectedInventory()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="inventorySelectAllChk" onchange="toggleInventorySelectAll(this.checked)"></th>
+                <th class="text-left px-2 py-3 font-bold">車牌</th>
+                <th class="text-left px-2 py-3 font-bold">品牌</th>
+                <th class="text-left px-2 py-3 font-bold">型號</th>
+                <th class="text-right px-2 py-3 font-bold">年份</th>
+                <th class="text-left px-2 py-3 font-bold">顏色</th>
+                <th class="text-right px-2 py-3 font-bold">買入價</th>
+                <th class="text-right px-2 py-3 font-bold">賣價</th>
+                <th class="text-right px-2 py-3 font-bold">一號保險</th>
+                <th class="text-right px-2 py-3 font-bold">三號保險</th>
+                <th class="text-right px-2 py-3 font-bold">路稅</th>
+                <th class="text-right px-2 py-3 font-bold">車牌費</th>
+                <th class="text-right px-2 py-3 font-bold">人工費</th>
+                <th class="text-left px-2 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      </section>
+
+      <!-- ============================================================ -->
       <!-- STAFF ACCOUNTS TAB                                            -->
       <!-- ============================================================ -->
       <section id="adminPanelStaff" class="admin-tab-panel">
@@ -342,10 +397,15 @@ let db, auth;
 let motoCache = [];
 let usedMotoCache = [];
 let staffCache = [];
+let inventoryCache = [];
 let unsubscribeMoto = null;
 let unsubscribeUsedMoto = null;
 let unsubscribeSettings = null;
 let unsubscribeStaff = null;
+let unsubscribeInventory = null;
+
+let inventorySearchTerm = '';
+let selectedInventoryIds = new Set();
 
 let motoSearchTerm = '';
 let selectedMotoIds = new Set();
@@ -392,12 +452,13 @@ async function initFirebase() {
     listenUsedMotoData();
     listenTradeInSettings();
     listenStaffData();
+    listenInventoryData();
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
 
 function switchAdminTab(tab) {
-  ['new', 'used', 'staff'].forEach(t => {
+  ['new', 'used', 'inventory', 'staff'].forEach(t => {
     const btn = document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('adminPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     btn.classList.toggle('active', t === tab);
@@ -451,6 +512,7 @@ async function logout() {
   if (unsubscribeUsedMoto) { unsubscribeUsedMoto(); unsubscribeUsedMoto = null; }
   if (unsubscribeSettings) { unsubscribeSettings(); unsubscribeSettings = null; }
   if (unsubscribeStaff) { unsubscribeStaff(); unsubscribeStaff = null; }
+  if (unsubscribeInventory) { unsubscribeInventory(); unsubscribeInventory = null; }
   await window.__authMod.signOut(auth);
 }
 
@@ -1062,6 +1124,247 @@ async function saveModelMargin() {
   } catch (err) {
     showToast('儲存失敗：' + err.message, true);
   }
+}
+
+// ================================================================
+// STORE USED-BIKE INVENTORY — units we own and are reselling
+// ================================================================
+function docIdForPlate(plateNo) {
+  return String(plateNo).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function listenInventoryData() {
+  if (unsubscribeInventory) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeInventory = onSnapshot(collection(db, USED_INVENTORY_COLLECTION), (snapshot) => {
+    inventoryCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    inventoryCache.sort((a, b) => (a.plateNo || '').localeCompare(b.plateNo || ''));
+    renderInventoryTable();
+  }, (err) => {
+    showToast('讀取庫存資料失敗：' + err.message, true);
+  });
+}
+
+function getFilteredInventory() {
+  const q = inventorySearchTerm.trim().toLowerCase();
+  if (!q) return inventoryCache;
+  return inventoryCache.filter(m => `${m.plateNo || ''} ${m.brand || ''} ${m.model || ''}`.toLowerCase().includes(q));
+}
+
+function onInventorySearchInput() {
+  inventorySearchTerm = document.getElementById('inventorySearchInput').value;
+  renderInventoryTable();
+}
+
+function toggleInventorySelect(id, checked) {
+  if (checked) selectedInventoryIds.add(id); else selectedInventoryIds.delete(id);
+  updateInventoryBulkBar();
+}
+
+function toggleInventorySelectAll(checked) {
+  const filtered = getFilteredInventory();
+  filtered.forEach(m => checked ? selectedInventoryIds.add(m.id) : selectedInventoryIds.delete(m.id));
+  renderInventoryTable();
+}
+
+function updateInventoryBulkBar() {
+  const btn = document.getElementById('inventoryDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedInventoryIds.size})`;
+  btn.disabled = selectedInventoryIds.size === 0;
+}
+
+async function deleteSelectedInventory() {
+  const ids = [...selectedInventoryIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆庫存車輛嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, USED_INVENTORY_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedInventoryIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderInventoryTable() {
+  document.getElementById('inventoryCount').textContent = inventoryCache.length;
+  const filtered = getFilteredInventory();
+  const tbody = document.getElementById('inventoryTableBody');
+  updateInventoryBulkBar();
+
+  const allChk = document.getElementById('inventorySelectAllChk');
+  if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedInventoryIds.has(m.id));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-slate-400 text-xs">${inventoryCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入庫存清單。' : '沒有符合搜尋條件的車輛。'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(m => `
+    <tr data-id="${m.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedInventoryIds.has(m.id) ? 'checked' : ''} onchange="toggleInventorySelect('${m.id}', this.checked)"></td>
+      <td class="px-2 py-2 font-bold text-slate-700 whitespace-nowrap">${escapeAttr(m.plateNo || '')}</td>
+      <td class="px-2 py-2"><input class="iv-brand form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
+      <td class="px-2 py-2"><input class="iv-model form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-year form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.year)}"></td>
+      <td class="px-2 py-2"><input class="iv-colour form-ctrl w-16 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.colour || '')}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-costPrice form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.costPrice)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-sellingPrice form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right font-bold" value="${numOr0(m.sellingPrice)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-ins1st form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.ins1st)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-ins3rd form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.ins3rd)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-roadTax form-ctrl w-14 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.roadTax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-plateBooking form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.plateBooking)}"></td>
+      <td class="px-2 py-2"><input type="number" class="iv-runnerFee form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(m.runnerFee)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveInventoryRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteInventoryRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function readInventoryRowData(tr) {
+  return {
+    plateNo: tr.querySelector('td:nth-child(2)').textContent.trim(),
+    brand: tr.querySelector('.iv-brand').value.trim(),
+    model: tr.querySelector('.iv-model').value.trim(),
+    year: numOr0(tr.querySelector('.iv-year').value),
+    colour: tr.querySelector('.iv-colour').value.trim(),
+    costPrice: numOr0(tr.querySelector('.iv-costPrice').value),
+    sellingPrice: numOr0(tr.querySelector('.iv-sellingPrice').value),
+    ins1st: numOr0(tr.querySelector('.iv-ins1st').value),
+    ins3rd: numOr0(tr.querySelector('.iv-ins3rd').value),
+    roadTax: numOr0(tr.querySelector('.iv-roadTax').value),
+    plateBooking: numOr0(tr.querySelector('.iv-plateBooking').value),
+    runnerFee: numOr0(tr.querySelector('.iv-runnerFee').value),
+  };
+}
+
+async function saveInventoryRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = readInventoryRowData(tr);
+  if (!data.brand || !data.model) {
+    showToast('品牌與型號不可留空', true);
+    return;
+  }
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, USED_INVENTORY_COLLECTION, id), data);
+    showToast(`已儲存：${data.plateNo}`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteInventoryRow(id) {
+  const row = inventoryCache.find(m => m.id === id);
+  const label = row ? row.plateNo : id;
+  if (!confirm(`確定要刪除「${label}」嗎？此動作無法復原。`)) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, USED_INVENTORY_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+// Parses the store's used-bike inventory CSV: 機車車牌, 品牌, 機車型號,
+// 製造年份, 買入價格, 顏色, 買入日期 (header row required, quoted
+// comma-thousands cost values). Each row is one physical unit, identified
+// by its plate number.
+function parseInventoryCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/車牌|vehicle no/i.test(lines[i])) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含「機車車牌」欄位），請確認是不是正確的庫存 CSV。');
+  }
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.length < 2 || !f[0].trim()) continue;
+    rows.push({
+      plateNo: f[0].trim(),
+      brand: (f[1] || '').trim(),
+      model: (f[2] || '').trim(),
+      year: parseRMValue(f[3] || ''),
+      costPrice: parseRMValue(f[4] || ''),
+      colour: (f[5] || '').trim(),
+      purchaseDate: (f[6] || '').trim(),
+    });
+  }
+  return rows;
+}
+
+async function importInventoryCSV() {
+  const fileInput = document.getElementById('inventoryCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseInventoryCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將匯入 ${rows.length} 筆庫存車輛（同車牌會覆蓋基本資料，但已設定過的賣價/保險/路稅/車牌費會保留）。確定繼續嗎？`)) return;
+
+  const existingById = new Map(inventoryCache.map(m => [m.id, m]));
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  const PRESERVE_FIELDS = ['sellingPrice', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => {
+        const id = docIdForPlate(r.plateNo);
+        const existing = existingById.get(id);
+        const data = { ...r };
+        PRESERVE_FIELDS.forEach(f => { data[f] = existing && typeof existing[f] === 'number' ? existing[f] : 0; });
+        batch.set(doc(db, USED_INVENTORY_COLLECTION, id), data);
+      });
+      await batch.commit();
+    }
+    showToast(`匯入完成：共 ${rows.length} 筆庫存車輛已更新。`);
+    fileInput.value = '';
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportInventoryCSV() {
+  const header = ['plateNo', 'brand', 'model', 'year', 'colour', 'costPrice', 'sellingPrice', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee', 'purchaseDate'];
+  const lines = [header.join(',')];
+  inventoryCache.forEach(m => {
+    lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `used-inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ================================================================
