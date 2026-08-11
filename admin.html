@@ -156,6 +156,19 @@
           <input id="motoSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onMotoSearchInput()" />
           <button id="motoDeleteSelectedBtn" onclick="deleteSelectedMoto()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
         </div>
+        <div class="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+          <span class="text-xs font-bold text-slate-600 shrink-0">批量套用：勾選車款後 →</span>
+          <select id="motoBulkField" class="form-ctrl rounded-lg px-2 py-1.5 text-xs">
+            <option value="ins1st">一號保險</option>
+            <option value="ins3rd">三號保險</option>
+            <option value="roadTax">路稅</option>
+            <option value="plateBooking">預定車牌</option>
+            <option value="runnerFee">標車牌人工費</option>
+            <option value="msrp">賣價</option>
+          </select>
+          <input id="motoBulkValueInput" type="number" placeholder="數值" class="form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" />
+          <button onclick="applyBulkFieldMoto()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all">套用到已選取</button>
+        </div>
         <div class="overflow-x-auto rounded-xl border border-slate-200">
           <table class="w-full text-xs">
             <thead>
@@ -243,6 +256,23 @@
           <input id="usedMotoSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onUsedMotoSearchInput()" />
           <button id="usedMotoDeleteSelectedBtn" onclick="deleteSelectedUsedMoto()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
         </div>
+        <div class="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+          <span class="text-xs font-bold text-slate-600 shrink-0">批量套用：勾選車款後 →</span>
+          <select id="usedMotoBulkField" class="form-ctrl rounded-lg px-2 py-1.5 text-xs">
+            <option value="marginPercent">折讓 %</option>
+            <option value="y1">Y1</option>
+            <option value="y2">Y2</option>
+            <option value="y3">Y3</option>
+            <option value="y4">Y4</option>
+            <option value="y5">Y5</option>
+            <option value="y6">Y6</option>
+            <option value="y7">Y7</option>
+            <option value="y8">Y8</option>
+            <option value="y9">Y9</option>
+          </select>
+          <input id="usedMotoBulkValueInput" type="number" step="0.5" placeholder="數值" class="form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" />
+          <button onclick="applyBulkFieldUsedMoto()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all">套用到已選取</button>
+        </div>
         <div class="overflow-x-auto rounded-xl border border-slate-200">
           <table class="w-full text-xs">
             <thead>
@@ -296,6 +326,19 @@
         <div class="flex flex-wrap items-center gap-3 mb-3">
           <input id="inventorySearchInput" type="text" placeholder="搜尋車牌、品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onInventorySearchInput()" />
           <button id="inventoryDeleteSelectedBtn" onclick="deleteSelectedInventory()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+          <span class="text-xs font-bold text-slate-600 shrink-0">批量套用：勾選車輛後 →</span>
+          <select id="inventoryBulkField" class="form-ctrl rounded-lg px-2 py-1.5 text-xs">
+            <option value="ins1st">一號保險</option>
+            <option value="ins3rd">三號保險</option>
+            <option value="roadTax">路稅</option>
+            <option value="plateBooking">車牌費</option>
+            <option value="runnerFee">人工費</option>
+            <option value="sellingPrice">賣價</option>
+          </select>
+          <input id="inventoryBulkValueInput" type="number" placeholder="數值" class="form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" />
+          <button onclick="applyBulkFieldInventory()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all">套用到已選取</button>
         </div>
         <div class="overflow-x-auto rounded-xl border border-slate-200">
           <table class="w-full text-xs">
@@ -1505,6 +1548,49 @@ async function addStaffAccount() {
   } catch (err) {
     showToast('新增失敗：' + describeAuthError(err), true);
   }
+}
+
+// ================================================================
+// BULK FIELD APPLY — set one field to one value across every checked row,
+// for prices that are commonly identical across many models/units
+// (e.g. insurance, road tax, plate fees).
+// ================================================================
+async function applyBulkFieldGeneric(collectionName, ids, field, value, label) {
+  if (ids.length === 0) {
+    showToast('請先勾選要套用的項目', true);
+    return;
+  }
+  if (!confirm(`確定要把這個數值套用到選取的 ${ids.length} 筆${label}嗎？（會覆蓋這些項目原本的數值）`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.update(doc(db, collectionName, id), { [field]: value }));
+      await batch.commit();
+    }
+    showToast(`已套用到 ${ids.length} 筆資料。`);
+  } catch (err) {
+    showToast('套用失敗：' + err.message, true);
+  }
+}
+
+function applyBulkFieldMoto() {
+  const field = document.getElementById('motoBulkField').value;
+  const value = numOr0(document.getElementById('motoBulkValueInput').value);
+  applyBulkFieldGeneric(MOTO_COLLECTION, [...selectedMotoIds], field, value, '車款資料');
+}
+
+function applyBulkFieldUsedMoto() {
+  const field = document.getElementById('usedMotoBulkField').value;
+  const value = numOr0(document.getElementById('usedMotoBulkValueInput').value);
+  applyBulkFieldGeneric(USED_MOTO_COLLECTION, [...selectedUsedMotoIds], field, value, '二手車資料');
+}
+
+function applyBulkFieldInventory() {
+  const field = document.getElementById('inventoryBulkField').value;
+  const value = numOr0(document.getElementById('inventoryBulkValueInput').value);
+  applyBulkFieldGeneric(USED_INVENTORY_COLLECTION, [...selectedInventoryIds], field, value, '庫存車輛');
 }
 
 // ================================================================
