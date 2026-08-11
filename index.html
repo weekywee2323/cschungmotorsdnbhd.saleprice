@@ -557,8 +557,14 @@
           <p class="text-xs text-slate-500 mb-5">輸入車牌查詢店內現有二手車庫存定價</p>
 
           <label class="block mb-1 text-xs font-bold text-slate-600">車牌</label>
-          <input id="usedSalePlateInput" type="text" list="usedSalePlateList" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="輸入車牌，例如 JGY 1675" onkeydown="if(event.key==='Enter') calcUsedSale()" />
-          <datalist id="usedSalePlateList"></datalist>
+          <div class="relative mb-4">
+            <input id="usedSalePlateInput" type="text" autocomplete="off" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm" placeholder="輸入車牌，例如 JGY 1675 或 1675"
+              oninput="onUsedSalePlateInput()"
+              onkeydown="if(event.key==='Enter') calcUsedSale()"
+              onblur="setTimeout(() => document.getElementById('usedSalePlateSuggestions').classList.add('hidden'), 150)"
+              onfocus="onUsedSalePlateInput()" />
+            <div id="usedSalePlateSuggestions" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto"></div>
+          </div>
 
           <label class="block mb-1 text-xs font-bold text-slate-600">成交價</label>
           <input id="usedSaleDealPrice" type="number" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-1" oninput="onUsedSaleInputChange()" placeholder="查到車輛後自動帶入建議賣價" />
@@ -1558,8 +1564,6 @@ function applyUsedMotoDataUpdate() {
 // and the price lookup table (cost price, so a salesman can see what the
 // shop paid before deciding what to sell it for).
 function applyUsedInventoryUpdate() {
-  populateUsedSalePlateList();
-
   if (lastUsedSaleCalc) {
     const fresh = usedInventoryData.find(u => u.id === lastUsedSaleCalc.id);
     if (fresh) { lastUsedSaleCalc = fresh; renderUsedSaleResults(); }
@@ -1568,19 +1572,47 @@ function applyUsedInventoryUpdate() {
   renderUsedLookupTable();
 }
 
-// Every unit is listed here regardless of whether it has a selling price
-// yet — the salesman can always type the deal price in by hand.
-function populateUsedSalePlateList() {
-  const list = document.getElementById('usedSalePlateList');
-  list.innerHTML = usedInventoryData
-    .slice()
-    .sort((a, b) => (a.plateNo || '').localeCompare(b.plateNo || ''))
-    .map(u => `<option value="${u.plateNo}">${u.brand} ${u.model} (${u.year}, ${u.colour})</option>`)
-    .join('');
-}
-
 function docIdForPlate(plateNo) {
   return String(plateNo).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+// Custom suggestion dropdown instead of a native <datalist> — datalist's
+// suggestion popover is unreliable on mobile Safari/iPadOS (it often never
+// appears when typing digits), so this renders and filters matches by hand
+// on every keystroke, which behaves identically on every device.
+function onUsedSalePlateInput() {
+  const q = document.getElementById('usedSalePlateInput').value.trim().toLowerCase();
+  const box = document.getElementById('usedSalePlateSuggestions');
+  if (!q) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  const matches = usedInventoryData
+    .filter(u => `${u.plateNo} ${u.brand} ${u.model}`.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (matches.length === 0) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = matches.map(u => `
+    <button type="button" onmousedown="event.preventDefault(); selectUsedSalePlate('${escapeJsString(u.plateNo)}')" class="w-full text-left px-4 py-2.5 text-xs hover:bg-emerald-50 border-b border-slate-100 last:border-0">
+      <span class="font-bold text-slate-700">${u.plateNo}</span>
+      <span class="text-slate-500"> — ${u.brand} ${u.model} (${u.year}, ${u.colour})</span>
+    </button>
+  `).join('');
+  box.classList.remove('hidden');
+}
+
+function escapeJsString(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function selectUsedSalePlate(plateNo) {
+  document.getElementById('usedSalePlateInput').value = plateNo;
+  document.getElementById('usedSalePlateSuggestions').classList.add('hidden');
+  calcUsedSale();
 }
 
 function onUsedSaleInputChange() {
