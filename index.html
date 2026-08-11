@@ -651,6 +651,13 @@
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-amber-600" id="usedSaleValRoadTax">—</td>
                   </tr>
+                  <tr id="usedSaleRowInspection" class="res-row border-b border-slate-200 hidden">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                      驗車費
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-orange-600" id="usedSaleValInspection">—</td>
+                  </tr>
                   <tr class="res-row border-b border-slate-200 bg-slate-50/50">
                     <td class="px-5 py-3.5 text-slate-800 font-bold flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
@@ -1603,7 +1610,17 @@ function renderUsedSaleResults() {
   document.getElementById('usedSaleDealPriceHint').textContent = `建議賣價 ${fmt(unit.sellingPrice || 0)}（可自行調整為實際成交價）`;
 
   const insurance = insType === '1st' ? (unit.ins1st || 0) : (unit.ins3rd || 0);
-  const otr = price + insurance + (unit.roadTax || 0);
+
+  // Bikes 3+ years old need a Puspakom inspection before resale — this is
+  // automatic (not an option the salesman toggles), but the fee still
+  // needs to show up as its own line in the breakdown.
+  const INSPECTION_FEE = 300;
+  const INSPECTION_AGE_THRESHOLD = 3;
+  const vehicleAge = 2026 - (unit.year || 2026);
+  const needsInspection = vehicleAge >= INSPECTION_AGE_THRESHOLD;
+  const inspectionFee = needsInspection ? INSPECTION_FEE : 0;
+
+  const otr = price + insurance + (unit.roadTax || 0) + inspectionFee;
 
   const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
   const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
@@ -1617,6 +1634,14 @@ function renderUsedSaleResults() {
   document.getElementById('usedSaleValPrice').textContent = fmt(price);
   document.getElementById('usedSaleValInsurance').textContent = fmt(insurance);
   document.getElementById('usedSaleValRoadTax').textContent = fmt(unit.roadTax || 0);
+
+  const rowInspection = document.getElementById('usedSaleRowInspection');
+  if (needsInspection) {
+    rowInspection.classList.remove('hidden');
+    document.getElementById('usedSaleValInspection').textContent = fmt(inspectionFee);
+  } else {
+    rowInspection.classList.add('hidden');
+  }
 
   document.getElementById('usedSaleValOTR').textContent = fmt(otr);
 
