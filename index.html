@@ -226,11 +226,18 @@
             <p class="text-[10px] text-slate-500 tracking-wider uppercase font-bold" data-i18n="siteSubtitle">機車價格計算器</p>
           </div>
         </div>
-        <!-- Language Switcher -->
-        <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 shrink-0" id="langSwitcher">
-          <button class="lang-btn active px-3 py-1.5 rounded-lg text-xs font-bold" data-lang="zh" onclick="switchLang('zh')">中文</button>
-          <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="en" onclick="switchLang('en')">EN</button>
-          <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="ms" onclick="switchLang('ms')">BM</button>
+        <div class="flex items-center gap-3 shrink-0">
+          <!-- Language Switcher -->
+          <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 shrink-0" id="langSwitcher">
+            <button class="lang-btn active px-3 py-1.5 rounded-lg text-xs font-bold" data-lang="zh" onclick="switchLang('zh')">中文</button>
+            <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="en" onclick="switchLang('en')">EN</button>
+            <button class="lang-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600" data-lang="ms" onclick="switchLang('ms')">BM</button>
+          </div>
+          <!-- Logged-in staff indicator -->
+          <div id="staffIndicator" class="hidden items-center gap-2">
+            <span id="staffIndicatorName" class="text-xs font-bold text-slate-500 hidden sm:inline">—</span>
+            <button onclick="doLogout()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">登出</button>
+          </div>
         </div>
       </div>
     </div>
@@ -240,6 +247,31 @@
   <!-- MAIN APP CONTAINER                                           -->
   <!-- ============================================================ -->
   <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+
+    <!-- ============================================================ -->
+    <!-- LOGIN GATE                                                    -->
+    <!-- ============================================================ -->
+    <div id="loginGate" class="max-w-sm mx-auto mt-10 sm:mt-20">
+      <div class="card-light rounded-2xl p-7">
+        <h2 class="text-lg font-black mb-1 text-slate-800">員工登入</h2>
+        <p class="text-xs text-slate-500 mb-5">此計算機僅供內部員工使用，請用你的帳號登入。</p>
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">帳號 (ID)</label>
+        <input id="loginIdInput" type="text" autocapitalize="off" autocomplete="username" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="例如：boss" />
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">密碼</label>
+        <input id="loginPasswordInput" type="password" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()" />
+
+        <p id="loginErrorMsg" class="hidden text-xs font-bold text-rose-600 mb-3"></p>
+
+        <button id="loginSubmitBtn" onclick="doLogin()" class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all">登入</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CALCULATOR APP (hidden until logged in)                       -->
+    <!-- ============================================================ -->
+    <div id="calculatorApp" class="hidden">
 
     <!-- Hero Section -->
     <div class="text-center mb-8 anim-up">
@@ -304,12 +336,21 @@
             <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
           </select>
 
+          <!-- Negotiated Selling Price -->
+          <label class="block mb-1 text-xs font-bold text-slate-600">成交賣價 (可議價)</label>
+          <input id="newSellingPrice" type="number" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-1" oninput="onSellingPriceInput()" placeholder="選擇車型後自動帶入官方售價" />
+          <p id="sellingPriceHint" class="text-[10px] text-slate-400 mb-4">選擇車型後會顯示可議價範圍</p>
+
           <!-- Insurance Type -->
           <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelInsurance">保險類型</label>
           <select id="newInsurance" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none" onchange="onNewInputChange()">
             <option value="3rd" data-i18n="ins3rd">三號保險 (Third Party)</option>
             <option value="1st" data-i18n="ins1st">一號保險 (First Party)</option>
           </select>
+
+          <!-- Down Payment -->
+          <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
+          <input id="newDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onNewInputChange()" />
 
           <!-- Extra Fees Checkboxes -->
           <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-3">
@@ -387,13 +428,21 @@
                   </tr>
                 </thead>
                 <tbody id="newResultBody">
-                  <!-- MSRP -->
+                  <!-- MSRP (reference only, not used in the calculation) -->
+                  <tr class="res-row border-b border-slate-200">
+                    <td class="px-5 py-3 text-slate-500 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                      <span data-i18n="rowMSRP">官方建議售價 (MSRP)</span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-semibold text-slate-500" id="valMSRP">—</td>
+                  </tr>
+                  <!-- Negotiated Selling Price (this is what feeds the OTR calc) -->
                   <tr class="res-row border-b border-slate-200">
                     <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      <span data-i18n="rowMSRP">官方建議售價 (MSRP)</span>
+                      成交賣價
                     </td>
-                    <td class="px-5 py-3 text-right font-bold text-emerald-600" id="valMSRP">—</td>
+                    <td class="px-5 py-3 text-right font-bold text-emerald-600" id="valSellingPrice">—</td>
                   </tr>
                   <!-- Insurance -->
                   <tr class="res-row border-b border-slate-200">
@@ -434,6 +483,14 @@
                       <span data-i18n="rowOTR">辦到好預估總價 (OTR)</span>
                     </td>
                     <td class="px-5 py-3.5 text-right font-bold text-slate-800" id="valOTR">—</td>
+                  </tr>
+                  <!-- Down Payment Deduction -->
+                  <tr id="rowDownPayment" class="res-row hidden" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);">
+                    <td class="px-5 py-3.5 font-black flex items-center gap-2 text-rose-600">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                      減：頭期款 (Down Payment)
+                    </td>
+                    <td class="px-5 py-3.5 text-right font-black text-lg text-rose-600" id="valDownPayment">- RM 0</td>
                   </tr>
                   <!-- Trade-In Deduction -->
                   <tr id="rowDeduction" class="res-row hidden" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);">
@@ -758,6 +815,9 @@
       </div>
     </section>
 
+    </div>
+    <!-- /calculatorApp -->
+
   </main>
 
   <!-- FOOTER -->
@@ -784,6 +844,16 @@ let usedMotorcycleData = []; // Aeon used-bike age/value reference table, from F
 let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models present in the Aeon sheet
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
+
+// Shared Firebase handles — initialized once by initAuthGate(), then reused
+// by fetchBikeData() and everything else so the app is never signed in twice.
+let firebaseApp = null;
+let auth = null;
+let db = null;
+
+let currentStaffUid = null;
+let currentStaffName = '';
+let currentStaffMaxDiscount = 0;
 
 let lastNewCalc = null;         // Cached selected New Bike object
 let appliedTradeInVal = 0;      // Value successfully Applied from Used trade-in valuation
@@ -1069,11 +1139,102 @@ const LOCAL_BIKE_DATA = [
 ];
 
 // ================================================================
-// SYSTEM INITIALIZATION
+// AUTH GATE — the calculator is staff-only; nothing loads until a
+// logged-in account with a matching "staff" record is confirmed.
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  fetchBikeData();
+  initAuthGate();
 });
+
+const ID_LOGIN_DOMAIN = 'csmotor.local';
+function toLoginEmail(id) {
+  return id.includes('@') ? id : `${id}@${ID_LOGIN_DOMAIN}`;
+}
+
+async function initAuthGate() {
+  try {
+    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
+    const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`);
+    const fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore.js`);
+    window.__authMod = authMod;
+    window.__fsMod = fsMod;
+
+    firebaseApp = initializeApp(FIREBASE_CONFIG);
+    auth = authMod.getAuth(firebaseApp);
+    db = fsMod.getFirestore(firebaseApp);
+
+    authMod.onAuthStateChanged(auth, async (user) => {
+      document.getElementById('loginSubmitBtn').disabled = false;
+      if (!user) {
+        currentStaffUid = null;
+        showLoginGate();
+        return;
+      }
+      try {
+        const snap = await fsMod.getDoc(fsMod.doc(db, STAFF_COLLECTION, user.uid));
+        if (!snap.exists()) {
+          showLoginError('此帳號尚未設定使用權限，請聯絡管理員。');
+          await authMod.signOut(auth);
+          return;
+        }
+        const staffData = snap.data();
+        currentStaffUid = user.uid;
+        currentStaffName = staffData.displayName || staffData.id || '';
+        currentStaffMaxDiscount = typeof staffData.maxDiscountPercent === 'number' ? staffData.maxDiscountPercent : 0;
+        showCalculatorApp();
+        fetchBikeData();
+      } catch (err) {
+        showLoginError('登入驗證失敗：' + err.message);
+      }
+    });
+  } catch (err) {
+    showLoginError('系統連線失敗，請檢查網路或稍後再試。');
+  }
+}
+
+async function doLogin() {
+  const id = document.getElementById('loginIdInput').value.trim();
+  const pass = document.getElementById('loginPasswordInput').value;
+  const errEl = document.getElementById('loginErrorMsg');
+  errEl.classList.add('hidden');
+  if (!id || !pass) {
+    showLoginError('請輸入帳號與密碼。');
+    return;
+  }
+  document.getElementById('loginSubmitBtn').disabled = true;
+  try {
+    await window.__authMod.signInWithEmailAndPassword(auth, toLoginEmail(id), pass);
+  } catch (err) {
+    document.getElementById('loginSubmitBtn').disabled = false;
+    showLoginError('登入失敗：帳號或密碼錯誤。');
+  }
+}
+
+async function doLogout() {
+  await window.__authMod.signOut(auth);
+}
+
+function showLoginGate() {
+  document.getElementById('loginGate').classList.remove('hidden');
+  document.getElementById('calculatorApp').classList.add('hidden');
+  document.getElementById('staffIndicator').classList.add('hidden');
+  document.getElementById('staffIndicator').classList.remove('flex');
+}
+
+function showCalculatorApp() {
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('calculatorApp').classList.remove('hidden');
+  const indicator = document.getElementById('staffIndicator');
+  indicator.classList.remove('hidden');
+  indicator.classList.add('flex');
+  document.getElementById('staffIndicatorName').textContent = currentStaffName ? `👤 ${currentStaffName}` : '';
+}
+
+function showLoginError(msg) {
+  const errEl = document.getElementById('loginErrorMsg');
+  errEl.textContent = msg;
+  errEl.classList.remove('hidden');
+}
 
 // Loads all live pricing data from Firestore in real time: new-bike prices,
 // the Aeon used-bike age/value reference table, and the trade-in margin
@@ -1082,10 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // only ever comes from the imported Aeon sheet.
 async function fetchBikeData() {
   try {
-    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
-    const { getFirestore, collection, doc, onSnapshot } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore.js`);
-    const app = initializeApp(FIREBASE_CONFIG);
-    const db = getFirestore(app);
+    const { collection, doc, onSnapshot } = window.__fsMod;
 
     await Promise.all([
       new Promise((resolve) => {
@@ -1346,7 +1504,18 @@ function calcNew() {
   if (!moto) { alert(t.alertModel); return; }
 
   lastNewCalc = moto;
+  document.getElementById('newSellingPrice').value = moto.msrp || 0;
   renderNewResults();
+}
+
+// The lowest a logged-in staff member is allowed to type into "成交賣價"
+// for a given MSRP, based on their own admin-set discount limit.
+function sellingPriceFloor(msrp) {
+  return Math.ceil((msrp || 0) * (1 - currentStaffMaxDiscount / 100));
+}
+
+function onSellingPriceInput() {
+  if (lastNewCalc) renderNewResults();
 }
 
 function renderNewResults() {
@@ -1357,23 +1526,56 @@ function renderNewResults() {
   const chkPlate = document.getElementById('chkPlate').checked;
   const chkRunner = document.getElementById('chkRunner').checked;
 
+  // Validate the negotiated selling price against this staff member's
+  // discount limit before computing anything else.
+  const msrp = moto.msrp || 0;
+  const floor = sellingPriceFloor(msrp);
+  const sellingPriceInput = document.getElementById('newSellingPrice');
+  const enteredPrice = parseFloat(sellingPriceInput.value);
+  const hintEl = document.getElementById('sellingPriceHint');
+  const priceValid = !isNaN(enteredPrice) && enteredPrice >= floor && enteredPrice <= msrp;
+
+  if (priceValid) {
+    sellingPriceInput.classList.remove('border-rose-500');
+    hintEl.className = 'text-[10px] text-slate-400 mb-4';
+    hintEl.textContent = `官方定價 ${fmt(msrp)}．你最多可折扣至 ${fmt(floor)}（折扣上限 ${currentStaffMaxDiscount}%）`;
+  } else {
+    sellingPriceInput.classList.add('border-rose-500');
+    hintEl.className = 'text-[10px] text-rose-600 font-bold mb-4';
+    hintEl.textContent = `超出你的折扣權限，賣價需介於 ${fmt(floor)} ~ ${fmt(msrp)}（折扣上限 ${currentStaffMaxDiscount}%）`;
+  }
+
+  document.getElementById('newSelectedInfo').classList.remove('hidden');
+  document.getElementById('newSelectedName').textContent = `${moto.brand} ${moto.model}`;
+  document.getElementById('newSelectedIns').textContent = insType === '1st' ? t.ins1st : t.ins3rd;
+  document.getElementById('valMSRP').textContent = fmt(msrp);
+  document.getElementById('valSellingPrice').textContent = priceValid ? fmt(enteredPrice) : '—';
+
+  if (!priceValid) {
+    // Can't compute a result with an out-of-range price — clear the rest
+    // of the table instead of showing numbers based on an invalid input.
+    ['valInsurance', 'valRoadTax', 'valPlate', 'valRunner', 'valOTR', 'valNetPay'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('rowDownPayment').classList.add('hidden');
+    document.getElementById('rowDeduction').classList.add('hidden');
+    document.getElementById('rowTradeInEqLine').classList.add('hidden');
+    document.getElementById('newLoanAction').classList.add('hidden');
+    lastNetPayVal = 0;
+    return;
+  }
+
+  const sellingPrice = enteredPrice;
   const insurance = insType === '1st' ? (moto.ins1st || 0) : (moto.ins3rd || 0);
   const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
   const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
-  const otr = (moto.msrp || 0) + insurance + (moto.roadTax || 0) + plateVal + runnerVal;
+  const otr = sellingPrice + insurance + (moto.roadTax || 0) + plateVal + runnerVal;
 
-  // Subtract applied trade in value
-  const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal));
+  // Down payment and trade-in both reduce the balance the customer still owes
+  const downPayment = Math.max(0, numOr0(document.getElementById('newDownPayment').value));
+  const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
 
-  // Render info badge
-  const info = document.getElementById('newSelectedInfo');
-  info.classList.remove('hidden');
-  document.getElementById('newSelectedName').textContent = `${moto.brand} ${moto.model}`;
-  document.getElementById('newSelectedIns').textContent = insType === '1st' ? t.ins1st : t.ins3rd;
-
-  // Render rows
-  document.getElementById('valMSRP').textContent = fmt(moto.msrp || 0);
   document.getElementById('valInsurance').textContent = fmt(insurance);
   document.getElementById('valRoadTax').textContent = fmt(moto.roadTax || 0);
 
@@ -1402,6 +1604,16 @@ function renderNewResults() {
   // OTR row
   document.getElementById('valOTR').textContent = fmt(otr);
 
+  // Down Payment row
+  const rowDownPayment = document.getElementById('rowDownPayment');
+  const valDownPayment = document.getElementById('valDownPayment');
+  if (downPayment > 0) {
+    rowDownPayment.classList.remove('hidden');
+    valDownPayment.textContent = `- ${fmt(downPayment)}`;
+  } else {
+    rowDownPayment.classList.add('hidden');
+  }
+
   // Trade In Offset row & badge sync
   const rowDeduction = document.getElementById('rowDeduction');
   const rowEqLine = document.getElementById('rowTradeInEqLine');
@@ -1411,18 +1623,22 @@ function renderNewResults() {
 
   if (appliedTradeInVal > 0) {
     if (rowDeduction) rowDeduction.classList.remove('hidden');
-    if (rowEqLine) rowEqLine.classList.remove('hidden');
     if (valDeduction) valDeduction.textContent = `- ${fmt(appliedTradeInVal)}`;
-    if (rowNetPayMain) rowNetPayMain.className = 'res-row border-t-2 border-emerald-500 bg-emerald-50/50';
-    if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-emerald-600';
     showTradeInBadge(appliedTradeInVal);
   } else {
     if (rowDeduction) rowDeduction.classList.add('hidden');
+    const badge = document.getElementById('tradeInBadge');
+    if (badge) badge.classList.add('hidden');
+  }
+
+  if (appliedTradeInVal > 0 || downPayment > 0) {
+    if (rowEqLine) rowEqLine.classList.remove('hidden');
+    if (rowNetPayMain) rowNetPayMain.className = 'res-row border-t-2 border-emerald-500 bg-emerald-50/50';
+    if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-emerald-600';
+  } else {
     if (rowEqLine) rowEqLine.classList.add('hidden');
     if (rowNetPayMain) rowNetPayMain.className = 'res-row border-t-2 border-accent-blue/30 bg-blue-50/30';
     if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-accent-blue';
-    const badge = document.getElementById('tradeInBadge');
-    if (badge) badge.classList.add('hidden');
   }
 
   // Final Net Pay value
@@ -1716,6 +1932,11 @@ function findUsedMoto(brand, model) {
 
 function fmt(n) {
   return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function numOr0(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
 }
 </script>
 </body>

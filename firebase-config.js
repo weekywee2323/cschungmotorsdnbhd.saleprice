@@ -15,3 +15,4 @@ const FIREBASE_SDK_VERSION = "12.17.1";
 const MOTO_COLLECTION = "motorcycles";
 const USED_MOTO_COLLECTION = "usedMotorcycles";
 const TRADE_IN_SETTINGS_PATH = "settings/tradeInConfig";
+const STAFF_COLLECTION = "staff";
