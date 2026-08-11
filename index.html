@@ -554,17 +554,15 @@
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
             二手車查詢
           </h3>
-          <p class="text-xs text-slate-500 mb-5">選擇店內現有二手車庫存以查詢定價</p>
+          <p class="text-xs text-slate-500 mb-5">輸入車牌查詢店內現有二手車庫存定價</p>
 
-          <label class="block mb-1 text-xs font-bold text-slate-600">品牌</label>
-          <select id="usedSaleBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onUsedSaleBrandChange()">
-            <option value="">— 請選擇 —</option>
-          </select>
+          <label class="block mb-1 text-xs font-bold text-slate-600">車牌</label>
+          <input id="usedSalePlateInput" type="text" list="usedSalePlateList" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="輸入車牌，例如 JGY 1675" onkeydown="if(event.key==='Enter') calcUsedSale()" />
+          <datalist id="usedSalePlateList"></datalist>
 
-          <label class="block mb-1 text-xs font-bold text-slate-600">車輛（型號 / 車牌）</label>
-          <select id="usedSaleUnit" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onUsedSaleInputChange()">
-            <option value="">— 請先選擇品牌 —</option>
-          </select>
+          <label class="block mb-1 text-xs font-bold text-slate-600">成交價</label>
+          <input id="usedSaleDealPrice" type="number" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-1" oninput="onUsedSaleInputChange()" placeholder="查到車輛後自動帶入建議賣價" />
+          <p id="usedSaleDealPriceHint" class="text-[10px] text-slate-400 mb-4">查詢車牌後會顯示建議賣價</p>
 
           <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
           <input id="usedSaleDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onUsedSaleInputChange()" />
@@ -574,18 +572,6 @@
             <option value="3rd">三號保險 (Third Party)</option>
             <option value="1st">一號保險 (First Party)</option>
           </select>
-
-          <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60 space-y-3">
-            <p class="text-xs font-bold text-slate-700 mb-1">額外費用</p>
-            <label class="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" id="usedSaleChkPlate" class="chk-box" onchange="onUsedSaleInputChange()" />
-              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">預定車牌費</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" id="usedSaleChkRunner" class="chk-box" onchange="onUsedSaleInputChange()" />
-              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">標車牌人工費</span>
-            </label>
-          </div>
 
           <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcUsedSale()">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -626,6 +612,7 @@
                 <div>
                   <p class="text-[10px] uppercase font-bold text-slate-400">已選車輛</p>
                   <p class="text-sm font-extrabold text-slate-800" id="usedSaleSelectedName">—</p>
+                  <p class="text-[11px] text-slate-500 mt-0.5" id="usedSaleSelectedMeta">—</p>
                 </div>
                 <div class="text-right">
                   <p class="text-[10px] uppercase font-bold text-slate-400">保險類型</p>
@@ -646,7 +633,7 @@
                   <tr class="res-row border-b border-slate-200">
                     <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      賣價
+                      成交價
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-emerald-600" id="usedSaleValPrice">—</td>
                   </tr>
@@ -663,20 +650,6 @@
                       路稅
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-amber-600" id="usedSaleValRoadTax">—</td>
-                  </tr>
-                  <tr class="res-row dimmed border-b border-slate-200" id="usedSaleRowPlate">
-                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
-                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
-                      預定車牌費
-                    </td>
-                    <td class="px-5 py-3 text-right font-bold text-violet-600" id="usedSaleValPlate">—</td>
-                  </tr>
-                  <tr class="res-row dimmed border-b border-slate-200" id="usedSaleRowRunner">
-                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
-                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                      標車牌人工費
-                    </td>
-                    <td class="px-5 py-3 text-right font-bold text-rose-600" id="usedSaleValRunner">—</td>
                   </tr>
                   <tr class="res-row border-b border-slate-200 bg-slate-50/50">
                     <td class="px-5 py-3.5 text-slate-800 font-bold flex items-center gap-2">
@@ -1076,7 +1049,6 @@ let usedMotorcycleData = []; // Aeon used-bike age/value reference table, from F
 let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models present in the Aeon sheet
 
 let usedInventoryData = [];  // Store's own used-bike units for sale, from Firestore only
-let usedSaleBrandMap = {};   // { Brand: [unit1, unit2, ...] } — units with a sellingPrice set
 let lastUsedSaleCalc = null; // Cached selected used-sale unit object
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
@@ -1577,29 +1549,7 @@ function applyUsedMotoDataUpdate() {
 // inventory — only units with a sellingPrice set by the admin are shown,
 // since an unpriced unit isn't ready to quote to a customer yet.
 function applyUsedInventoryUpdate() {
-  usedSaleBrandMap = {};
-  usedInventoryData.filter(u => (u.sellingPrice || 0) > 0).forEach(u => {
-    if (!u.brand) return;
-    if (!usedSaleBrandMap[u.brand]) usedSaleBrandMap[u.brand] = [];
-    usedSaleBrandMap[u.brand].push(u);
-  });
-  Object.keys(usedSaleBrandMap).forEach(b => {
-    usedSaleBrandMap[b].sort((a, b2) => (a.model || '').localeCompare(b2.model || ''));
-  });
-  const sorted = {};
-  Object.keys(usedSaleBrandMap).sort().forEach(k => { sorted[k] = usedSaleBrandMap[k]; });
-  usedSaleBrandMap = sorted;
-
-  const brandEl = document.getElementById('usedSaleBrand');
-  const unitEl = document.getElementById('usedSaleUnit');
-  const brand = brandEl.value;
-  const unitId = unitEl.value;
-  populateUsedSaleBrands();
-  if (brand && usedSaleBrandMap[brand]) {
-    brandEl.value = brand;
-    onUsedSaleBrandChange();
-    if (unitId) unitEl.value = unitId;
-  }
+  populateUsedSalePlateList();
 
   if (lastUsedSaleCalc) {
     const fresh = usedInventoryData.find(u => u.id === lastUsedSaleCalc.id);
@@ -1609,31 +1559,19 @@ function applyUsedInventoryUpdate() {
   renderUsedLookupTable();
 }
 
-function populateUsedSaleBrands() {
-  const t = i18n[currentLang];
-  const sel = document.getElementById('usedSaleBrand');
-  sel.innerHTML = `<option value="">${t.phSelect}</option>`;
-  Object.keys(usedSaleBrandMap).forEach(b => {
-    sel.innerHTML += `<option value="${b}">${b}</option>`;
-  });
-  const unitSel = document.getElementById('usedSaleUnit');
-  unitSel.innerHTML = `<option value="">${t.phSelectBrandFirst}</option>`;
-  unitSel.disabled = true;
+// Every unit is listed here regardless of whether it has a selling price
+// yet — the salesman can always type the deal price in by hand.
+function populateUsedSalePlateList() {
+  const list = document.getElementById('usedSalePlateList');
+  list.innerHTML = usedInventoryData
+    .slice()
+    .sort((a, b) => (a.plateNo || '').localeCompare(b.plateNo || ''))
+    .map(u => `<option value="${u.plateNo}">${u.brand} ${u.model} (${u.year}, ${u.colour})</option>`)
+    .join('');
 }
 
-function onUsedSaleBrandChange() {
-  const t = i18n[currentLang];
-  const brand = document.getElementById('usedSaleBrand').value;
-  const unitSel = document.getElementById('usedSaleUnit');
-  if (!brand) {
-    unitSel.innerHTML = `<option value="">${t.phSelectBrandFirst}</option>`;
-    unitSel.disabled = true;
-    return;
-  }
-  const units = usedSaleBrandMap[brand] || [];
-  unitSel.innerHTML = `<option value="">${t.phSelect}</option>` +
-    units.map(u => `<option value="${u.id}">${u.model} — ${u.plateNo} (${u.year}, ${u.colour})</option>`).join('');
-  unitSel.disabled = false;
+function docIdForPlate(plateNo) {
+  return String(plateNo).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 function onUsedSaleInputChange() {
@@ -1641,15 +1579,15 @@ function onUsedSaleInputChange() {
 }
 
 function calcUsedSale() {
-  const brand = document.getElementById('usedSaleBrand').value;
-  const unitId = document.getElementById('usedSaleUnit').value;
-  if (!brand) { alert(i18n[currentLang].alertBrand); return; }
-  if (!unitId) { alert(i18n[currentLang].alertModel); return; }
+  const rawPlate = document.getElementById('usedSalePlateInput').value.trim();
+  if (!rawPlate) { alert('請輸入車牌。'); return; }
 
-  const unit = usedInventoryData.find(u => u.id === unitId);
-  if (!unit) { alert(i18n[currentLang].alertModel); return; }
+  const id = docIdForPlate(rawPlate);
+  const unit = usedInventoryData.find(u => u.id === id);
+  if (!unit) { alert('查無此車牌，請確認輸入是否正確。'); return; }
 
   lastUsedSaleCalc = unit;
+  document.getElementById('usedSaleDealPrice').value = unit.sellingPrice || 0;
   renderUsedSaleResults();
 }
 
@@ -1658,46 +1596,25 @@ function renderUsedSaleResults() {
   const unit = lastUsedSaleCalc;
   const t = i18n[currentLang];
   const insType = document.getElementById('usedSaleInsurance').value;
-  const chkPlate = document.getElementById('usedSaleChkPlate').checked;
-  const chkRunner = document.getElementById('usedSaleChkRunner').checked;
 
-  const price = unit.sellingPrice || 0;
+  const price = numOr0(document.getElementById('usedSaleDealPrice').value);
+  document.getElementById('usedSaleDealPriceHint').textContent = `建議賣價 ${fmt(unit.sellingPrice || 0)}（可自行調整為實際成交價）`;
+
   const insurance = insType === '1st' ? (unit.ins1st || 0) : (unit.ins3rd || 0);
-  const plateVal = chkPlate ? (unit.plateBooking || 0) : 0;
-  const runnerVal = chkRunner ? (unit.runnerFee || 0) : 0;
-  const otr = price + insurance + (unit.roadTax || 0) + plateVal + runnerVal;
+  const otr = price + insurance + (unit.roadTax || 0);
 
   const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
   const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
 
   document.getElementById('usedSaleSelectedInfo').classList.remove('hidden');
-  document.getElementById('usedSaleSelectedName').textContent = `${unit.brand} ${unit.model} (${unit.plateNo})`;
+  document.getElementById('usedSaleSelectedName').textContent = `${unit.brand} ${unit.model}`;
+  document.getElementById('usedSaleSelectedMeta').textContent = `車牌 ${unit.plateNo} ・ ${unit.year} 年 ・ ${unit.colour}`;
   document.getElementById('usedSaleSelectedIns').textContent = insType === '1st' ? t.ins1st : t.ins3rd;
 
   document.getElementById('usedSaleValPrice').textContent = fmt(price);
   document.getElementById('usedSaleValInsurance').textContent = fmt(insurance);
   document.getElementById('usedSaleValRoadTax').textContent = fmt(unit.roadTax || 0);
-
-  const rowPlate = document.getElementById('usedSaleRowPlate');
-  const valPlateEl = document.getElementById('usedSaleValPlate');
-  if (chkPlate) {
-    rowPlate.classList.remove('dimmed');
-    valPlateEl.textContent = fmt(unit.plateBooking || 0);
-  } else {
-    rowPlate.classList.add('dimmed');
-    valPlateEl.textContent = '—';
-  }
-
-  const rowRunner = document.getElementById('usedSaleRowRunner');
-  const valRunnerEl = document.getElementById('usedSaleValRunner');
-  if (chkRunner) {
-    rowRunner.classList.remove('dimmed');
-    valRunnerEl.textContent = fmt(unit.runnerFee || 0);
-  } else {
-    rowRunner.classList.add('dimmed');
-    valRunnerEl.textContent = '—';
-  }
 
   document.getElementById('usedSaleValOTR').textContent = fmt(otr);
 
