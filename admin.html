@@ -317,6 +317,29 @@
         </div>
       </div>
 
+      <!-- Add New Vehicle -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
+          新增車輛
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <input id="newInvPlateInput" placeholder="車牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvBrandInput" placeholder="品牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvModelInput" placeholder="型號" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvYearInput" type="number" placeholder="製造年份" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvColourInput" placeholder="顏色" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvCostInput" type="number" placeholder="買入價" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvSellingInput" type="number" placeholder="賣價" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvIns1stInput" type="number" placeholder="一號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvIns3rdInput" type="number" placeholder="三號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvRoadTaxInput" type="number" placeholder="路稅" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvPlateFeeInput" type="number" placeholder="車牌費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInvRunnerInput" type="number" placeholder="人工費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+        </div>
+        <button onclick="addInventoryVehicle()" class="mt-4 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增此車輛</button>
+      </div>
+
       <div class="card-light rounded-2xl p-6">
         <h2 class="text-base font-bold mb-4 flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
@@ -1316,6 +1339,40 @@ async function deleteInventoryRow(id) {
     showToast('已刪除。');
   } catch (err) {
     showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function addInventoryVehicle() {
+  const plateNo = document.getElementById('newInvPlateInput').value.trim();
+  const brand = document.getElementById('newInvBrandInput').value.trim();
+  const model = document.getElementById('newInvModelInput').value.trim();
+  if (!plateNo || !brand || !model) {
+    showToast('請輸入車牌、品牌與型號', true);
+    return;
+  }
+  const data = {
+    plateNo,
+    brand,
+    model,
+    year: numOr0(document.getElementById('newInvYearInput').value),
+    colour: document.getElementById('newInvColourInput').value.trim(),
+    costPrice: numOr0(document.getElementById('newInvCostInput').value),
+    sellingPrice: numOr0(document.getElementById('newInvSellingInput').value),
+    ins1st: numOr0(document.getElementById('newInvIns1stInput').value),
+    ins3rd: numOr0(document.getElementById('newInvIns3rdInput').value),
+    roadTax: numOr0(document.getElementById('newInvRoadTaxInput').value),
+    plateBooking: numOr0(document.getElementById('newInvPlateFeeInput').value),
+    runnerFee: numOr0(document.getElementById('newInvRunnerInput').value),
+  };
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, USED_INVENTORY_COLLECTION, docIdForPlate(plateNo)), data);
+    showToast(`已新增車輛：${plateNo}`);
+    ['newInvPlateInput', 'newInvBrandInput', 'newInvModelInput', 'newInvYearInput', 'newInvColourInput',
+      'newInvCostInput', 'newInvSellingInput', 'newInvIns1stInput', 'newInvIns3rdInput', 'newInvRoadTaxInput',
+      'newInvPlateFeeInput', 'newInvRunnerInput'].forEach(fid => document.getElementById(fid).value = '');
+  } catch (err) {
+    showToast('新增失敗：' + err.message, true);
   }
 }
 
