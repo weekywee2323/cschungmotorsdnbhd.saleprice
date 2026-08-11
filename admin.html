@@ -1106,18 +1106,26 @@ async function removeStaffAccess(uid) {
   }
 }
 
-// Creates a new Firebase Auth account without disturbing the admin's own
-// session. The client SDK normally signs you in as whichever account you
-// just created with createUserWithEmailAndPassword — using a throwaway
-// secondary app instance for the creation avoids that side effect.
-async function createStaffAuthAccount(email, password) {
+// Creates a new Firebase Auth account, or — if that ID already has one
+// (e.g. it's the same account used to log into admin.html) — signs into
+// the existing account instead so a staff record can be attached to it.
+// Either way this runs on a throwaway secondary app instance so it never
+// disturbs the admin's own logged-in session.
+async function createOrLinkStaffAuthAccount(email, password) {
   const { initializeApp, deleteApp } = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`);
   const secondaryApp = initializeApp(FIREBASE_CONFIG, `StaffCreation_${Date.now()}`);
   const secondaryAuth = window.__authMod.getAuth(secondaryApp);
   try {
-    const cred = await window.__authMod.createUserWithEmailAndPassword(secondaryAuth, email, password);
-    await window.__authMod.signOut(secondaryAuth);
-    return cred.user.uid;
+    try {
+      const cred = await window.__authMod.createUserWithEmailAndPassword(secondaryAuth, email, password);
+      await window.__authMod.signOut(secondaryAuth);
+      return { uid: cred.user.uid, linked: false };
+    } catch (err) {
+      if (!(err.code || '').includes('email-already-in-use')) throw err;
+      const cred = await window.__authMod.signInWithEmailAndPassword(secondaryAuth, email, password);
+      await window.__authMod.signOut(secondaryAuth);
+      return { uid: cred.user.uid, linked: true };
+    }
   } finally {
     await deleteApp(secondaryApp);
   }
@@ -1125,7 +1133,9 @@ async function createStaffAuthAccount(email, password) {
 
 function describeAuthError(err) {
   const code = (err && err.code) || '';
-  if (code.includes('email-already-in-use')) return '這個帳號 ID 已經被使用過，請換一個。';
+  if (code.includes('wrong-password') || code.includes('invalid-credential')) {
+    return '這個帳號 ID 已經存在，但密碼不正確——如果是要幫既有帳號（例如你登入後台用的那組）補上員工權限，請輸入它原本的密碼。';
+  }
   if (code.includes('weak-password')) return '密碼太簡單，至少需要 6 個字元。';
   if (code.includes('invalid-email')) return '帳號格式不正確，請避免特殊符號。';
   return (err && err.message) || String(err);
@@ -1151,12 +1161,12 @@ async function addStaffAccount() {
   }
 
   try {
-    const uid = await createStaffAuthAccount(toLoginEmail(id), password);
+    const { uid, linked } = await createOrLinkStaffAuthAccount(toLoginEmail(id), password);
     const { doc, setDoc } = window.__fsMod;
     await setDoc(doc(db, STAFF_COLLECTION, uid), {
       id, displayName: displayName || id, maxDiscountPercent, createdAt: Date.now(),
     });
-    showToast(`已新增員工帳號：${id}`);
+    showToast(linked ? `已將既有帳號「${id}」設定為員工權限：折扣上限 ${maxDiscountPercent}%` : `已新增員工帳號：${id}`);
     ['newStaffIdInput', 'newStaffPasswordInput', 'newStaffNameInput', 'newStaffDiscountInput']
       .forEach(fid => document.getElementById(fid).value = '');
   } catch (err) {
