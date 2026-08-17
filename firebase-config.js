@@ -18,3 +18,4 @@ const TRADE_IN_SETTINGS_PATH = "settings/tradeInConfig";
 const STAFF_COLLECTION = "staff";
 const USED_INVENTORY_COLLECTION = "usedInventory";
 const NEW_CAR_INSTALLMENT_COLLECTION = "newCarInstallmentData";
+const IMPORT_HISTORY_COLLECTION = "importHistory";

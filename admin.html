@@ -102,9 +102,9 @@
       <div class="flex justify-center mb-8">
         <div class="bg-slate-200/60 rounded-2xl p-1 flex gap-1 border border-slate-300/30">
           <button id="adminTabNew" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('new')">新車價格管理</button>
+          <button id="adminTabInstallment" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('installment')">新車分期資料</button>
           <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車收購行情</button>
           <button id="adminTabInventory" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('inventory')">二手車庫存管理</button>
-          <button id="adminTabInstallment" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('installment')">新車分期資料</button>
           <button id="adminTabStaff" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('staff')">員工帳號管理</button>
         </div>
       </div>
@@ -120,37 +120,15 @@
           <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
           批次匯入 / 匯出
         </h2>
-        <p class="text-xs text-slate-500 mb-4">CSV 欄位順序：品牌, 型號, 賣價, 一號保險, 三號保險, 路稅, 預定車牌, 標車牌人工費（含標題列）。匯入時同品牌+型號的資料會直接覆蓋原本價格。</p>
+        <p class="text-xs text-slate-500 mb-4">CSV 只要含品牌、型號欄位就能匯入，其餘欄位（賣價、一號保險、三號保險、路稅、預定車牌、標車牌人工費、車型分類）都是選填，系統會自動辨識欄位名稱，欄位順序、前面有沒有空白/標題列都沒關係。同品牌+型號的資料會用檔案裡「有出現」的欄位覆蓋，沒出現的欄位保留原本設定；資料庫裡沒有的型號會直接新增。</p>
         <div class="flex flex-wrap items-center gap-3">
           <input id="csvFileInput" type="file" accept=".csv" class="text-xs" />
           <button onclick="importCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
           <button onclick="exportCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
         </div>
-      </div>
-
-      <!-- Classification Import -->
-      <div class="card-light rounded-2xl p-6 mb-6">
-        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
-          匯入車型分類
-        </h2>
-        <p class="text-xs text-slate-500 mb-4">CSV 欄位：車型分類, 品牌, 車型名稱, 售價（含標題列，前面可以有標題/空白列，格式自動辨識）。只會更新「已經在下面表格中」的車款分類，分類表裡有但我們沒賣的型號會自動略過，不會多新增車款。車型分類會用來決定新車頁面帶去借貸計算器時可以選哪些利率（例如 MOPED 只能選 0.75%/0.833%）。</p>
-        <div class="flex flex-wrap items-center gap-3">
-          <input id="classificationCsvFileInput" type="file" accept=".csv" class="text-xs" />
-          <button onclick="importClassificationCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入車型分類 CSV</button>
-        </div>
-      </div>
-
-      <!-- Fleet Price List Import -->
-      <div class="card-light rounded-2xl p-6 mb-6">
-        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
-          整批更新新車價格（車隊清單）
-        </h2>
-        <p class="text-xs text-slate-500 mb-4">CSV 只要含 Brand, Model, Sales Price, Type 這些欄位就能自動辨識（欄位順序、前面有沒有空白列都沒關係）。同品牌+型號會更新賣價與車型分類，保險/路稅/車牌費會保留原本已經設定的數字；資料庫沒有的型號會直接新增，售價留空的車款會先存成 0。</p>
-        <div class="flex flex-wrap items-center gap-3">
-          <input id="fleetPriceCsvFileInput" type="file" accept=".csv" class="text-xs" />
-          <button onclick="importFleetPriceCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入新車價格 CSV</button>
+        <div id="motoImportHistoryBox" class="hidden mt-4 pt-4 border-t border-slate-100">
+          <p class="text-[11px] font-bold text-slate-500 mb-2">最近匯入紀錄</p>
+          <ul id="motoImportHistoryList" class="text-[11px] text-slate-500 space-y-1"></ul>
         </div>
       </div>
 
@@ -161,7 +139,10 @@
           新增車款
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          <input id="newBrandInput" placeholder="品牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <div class="relative">
+            <input id="newBrandInput" placeholder="品牌" autocomplete="off" class="form-ctrl w-full rounded-xl px-3 py-2 text-xs" oninput="onNewBrandInput()" onfocus="onNewBrandInput()" onblur="hideNewBrandSuggestions()" />
+            <div id="newBrandSuggestions" class="hidden absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto"></div>
+          </div>
           <input id="newModelInput" placeholder="型號" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newMsrpInput" type="number" placeholder="賣價" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newIns1stInput" type="number" placeholder="一號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
@@ -169,14 +150,6 @@
           <input id="newRoadTaxInput" type="number" placeholder="路稅" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newPlateInput" type="number" placeholder="預定車牌" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newRunnerInput" type="number" placeholder="標車牌人工費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
-          <select id="newClassificationInput" class="form-ctrl rounded-xl px-3 py-2 text-xs">
-            <option value="">車型分類（選填）</option>
-            <option value="MOPED">MOPED</option>
-            <option value="BIG BIKE">BIG BIKE</option>
-            <option value="SUPERBIKE">SUPERBIKE</option>
-            <option value="EV">EV</option>
-            <option value="ATV">ATV</option>
-          </select>
         </div>
         <button onclick="addNew()" class="mt-4 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增此車款</button>
       </div>
@@ -442,6 +415,10 @@
           <button onclick="importInstallmentDataCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
           <button onclick="exportInstallmentDataCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
         </div>
+        <div id="installmentImportHistoryBox" class="hidden mt-4 pt-4 border-t border-slate-100">
+          <p class="text-[11px] font-bold text-slate-500 mb-2">最近匯入紀錄</p>
+          <ul id="installmentImportHistoryList" class="text-[11px] text-slate-500 space-y-1"></ul>
+        </div>
       </div>
 
       <div class="card-light rounded-2xl p-6">
@@ -553,6 +530,8 @@ let unsubscribeSettings = null;
 let unsubscribeStaff = null;
 let unsubscribeInventory = null;
 let unsubscribeInstallment = null;
+let unsubscribeImportHistory = null;
+let importHistoryCache = [];
 
 let inventorySearchTerm = '';
 let selectedInventoryIds = new Set();
@@ -607,6 +586,7 @@ async function initFirebase() {
     listenStaffData();
     listenInventoryData();
     listenInstallmentData();
+    listenImportHistory();
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
@@ -668,6 +648,7 @@ async function logout() {
   if (unsubscribeStaff) { unsubscribeStaff(); unsubscribeStaff = null; }
   if (unsubscribeInventory) { unsubscribeInventory(); unsubscribeInventory = null; }
   if (unsubscribeInstallment) { unsubscribeInstallment(); unsubscribeInstallment = null; }
+  if (unsubscribeImportHistory) { unsubscribeImportHistory(); unsubscribeImportHistory = null; }
   await window.__authMod.signOut(auth);
 }
 
@@ -816,6 +797,10 @@ async function deleteRow(id) {
   }
 }
 
+// The quick-add form no longer collects a classification (that's set from
+// the main table below, or carried over from an import) — if brand+model
+// happens to match a row that already exists, its classification is kept
+// as-is rather than being wiped back to blank.
 async function addNew() {
   const brand = document.getElementById('newBrandInput').value.trim();
   const model = document.getElementById('newModelInput').value.trim();
@@ -823,6 +808,7 @@ async function addNew() {
     showToast('請輸入品牌與型號', true);
     return;
   }
+  const existing = motoCache.find(m => m.id === docIdFor(brand, model));
   const data = {
     brand, model,
     msrp: numOr0(document.getElementById('newMsrpInput').value),
@@ -831,17 +817,50 @@ async function addNew() {
     roadTax: numOr0(document.getElementById('newRoadTaxInput').value),
     plateBooking: numOr0(document.getElementById('newPlateInput').value),
     runnerFee: numOr0(document.getElementById('newRunnerInput').value),
-    classification: document.getElementById('newClassificationInput').value,
+    classification: existing ? (existing.classification || '') : '',
   };
   const { doc, setDoc } = window.__fsMod;
   try {
     await setDoc(doc(db, MOTO_COLLECTION, docIdFor(brand, model)), data);
     showToast(`已新增：${brand} ${model}`);
-    ['newBrandInput','newModelInput','newMsrpInput','newIns1stInput','newIns3rdInput','newRoadTaxInput','newPlateInput','newRunnerInput','newClassificationInput']
+    ['newBrandInput','newModelInput','newMsrpInput','newIns1stInput','newIns3rdInput','newRoadTaxInput','newPlateInput','newRunnerInput']
       .forEach(fid => document.getElementById(fid).value = '');
+    hideNewBrandSuggestions();
   } catch (err) {
     showToast('新增失敗：' + err.message, true);
   }
+}
+
+// ================================================================
+// ADD-NEW BRAND COMBO — a text input that also suggests existing brands,
+// so staff can either pick one already in use or type a brand-new one.
+// Built as a custom dropdown (not a native <datalist>) because datalist's
+// suggestion popover is unreliable on mobile Safari/iPadOS.
+// ================================================================
+function getMotoBrandList() {
+  return [...new Set(motoCache.map(m => m.brand).filter(Boolean))].sort();
+}
+
+function onNewBrandInput() {
+  const q = document.getElementById('newBrandInput').value.trim().toLowerCase();
+  const brands = getMotoBrandList().filter(b => !q || b.toLowerCase().includes(q));
+  const box = document.getElementById('newBrandSuggestions');
+  if (brands.length === 0) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = brands.slice(0, 20).map(b => `<button type="button" data-brand="${escapeAttr(b)}" class="block w-full text-left px-3 py-2 text-xs hover:bg-slate-50" onmousedown="event.preventDefault(); selectNewBrand(this.dataset.brand)">${escapeAttr(b)}</button>`).join('');
+  box.classList.remove('hidden');
+}
+
+function selectNewBrand(brand) {
+  document.getElementById('newBrandInput').value = brand;
+  hideNewBrandSuggestions();
+}
+
+function hideNewBrandSuggestions() {
+  setTimeout(() => document.getElementById('newBrandSuggestions').classList.add('hidden'), 150);
 }
 
 // ================================================================
@@ -872,6 +891,58 @@ function parseRMValue(val) {
   return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
 }
 
+// Flexible New Car Cash importer: detects whichever of these columns are
+// present by name (品牌/Brand, 型號/Model/車型名稱, 賣價/售價/Sales Price,
+// 一號保險, 三號保險, 路稅, 預定車牌, 標車牌人工費, 車型分類/Type) — column
+// order, extra columns, and leading title/blank rows don't matter. Brand and
+// Model are the only required columns; every other field is optional, and a
+// column that isn't present in the file at all is left untouched on import
+// rather than being reset to 0/blank.
+function parseGenericMotoCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1, headerFields = null;
+  for (let i = 0; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const hasBrand = f.some(c => /^(brand|品牌)$/i.test(c.trim()));
+    const hasModel = f.some(c => /^(model|型號|車型名稱)$/i.test(c.trim()));
+    if (hasBrand && hasModel) { headerIdx = i; headerFields = f; break; }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含品牌與型號欄位），請確認 CSV 格式。');
+  }
+
+  const findCol = (re) => headerFields.findIndex(c => re.test(c.trim()));
+  const colIdx = {
+    brand: findCol(/^(brand|品牌)$/i),
+    model: findCol(/^(model|型號|車型名稱)$/i),
+    msrp: findCol(/賣價|售價|sales?\s*price|^msrp$/i),
+    ins1st: findCol(/一號保險|1st.*insurance/i),
+    ins3rd: findCol(/三號保險|3rd.*insurance/i),
+    roadTax: findCol(/路稅|road\s*tax/i),
+    plateBooking: findCol(/預定車牌|plate.*booking/i),
+    runnerFee: findCol(/人工費|runner.*fee/i),
+    classification: findCol(/車型分類|classification|^type$/i),
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const brand = (f[colIdx.brand] || '').trim();
+    const model = (f[colIdx.model] || '').trim();
+    if (!brand || !model) continue;
+    const row = { brand, model };
+    if (colIdx.msrp >= 0) row.msrp = parseRMValue(f[colIdx.msrp] || '');
+    if (colIdx.ins1st >= 0) row.ins1st = parseRMValue(f[colIdx.ins1st] || '');
+    if (colIdx.ins3rd >= 0) row.ins3rd = parseRMValue(f[colIdx.ins3rd] || '');
+    if (colIdx.roadTax >= 0) row.roadTax = parseRMValue(f[colIdx.roadTax] || '');
+    if (colIdx.plateBooking >= 0) row.plateBooking = parseRMValue(f[colIdx.plateBooking] || '');
+    if (colIdx.runnerFee >= 0) row.runnerFee = parseRMValue(f[colIdx.runnerFee] || '');
+    if (colIdx.classification >= 0) row.classification = (f[colIdx.classification] || '').trim().toUpperCase();
+    rows.push(row);
+  }
+  return rows;
+}
+
 async function importCSV() {
   const fileInput = document.getElementById('csvFileInput');
   const file = fileInput.files[0];
@@ -880,47 +951,49 @@ async function importCSV() {
     return;
   }
   const text = await file.text();
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) {
-    showToast('CSV 內容是空的', true);
-    return;
-  }
 
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const v = parseCSVLine(lines[i]);
-    if (v.length < 2 || !v[0] || !v[1]) continue;
-    rows.push({
-      brand: v[0], model: v[1],
-      msrp: parseRMValue(v[2]), ins1st: parseRMValue(v[3]), ins3rd: parseRMValue(v[4]),
-      roadTax: parseRMValue(v[5]), plateBooking: parseRMValue(v[6]), runnerFee: parseRMValue(v[7]),
-    });
+  let rows;
+  try {
+    rows = parseGenericMotoCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
   }
   if (rows.length === 0) {
     showToast('沒有解析到任何有效的資料列', true);
     return;
   }
-  if (!confirm(`即將匯入 ${rows.length} 筆車款資料（同品牌+型號會覆蓋原本價格）。確定繼續嗎？`)) return;
+  if (!confirm(`即將匯入 ${rows.length} 筆車款資料（同品牌+型號的資料會用檔案裡有出現的欄位覆蓋，沒出現的欄位保留原本設定；沒有的型號會直接新增）。確定繼續嗎？`)) return;
 
+  const existingById = new Map(motoCache.map(m => [m.id, m]));
+  const NUMERIC_FIELDS = ['msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
   const { doc, writeBatch } = window.__fsMod;
   const CHUNK = 400;
   try {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const batch = writeBatch(db);
       rows.slice(i, i + CHUNK).forEach(r => {
-        batch.set(doc(db, MOTO_COLLECTION, docIdFor(r.brand, r.model)), r);
+        const id = docIdFor(r.brand, r.model);
+        const existing = existingById.get(id);
+        const data = { brand: r.brand, model: r.model };
+        NUMERIC_FIELDS.forEach(f => {
+          data[f] = r[f] !== undefined ? r[f] : (existing ? numOr0(existing[f]) : 0);
+        });
+        data.classification = r.classification !== undefined ? r.classification : (existing ? (existing.classification || '') : '');
+        batch.set(doc(db, MOTO_COLLECTION, id), data);
       });
       await batch.commit();
     }
     showToast(`匯入完成：共 ${rows.length} 筆車款資料已更新。`);
     fileInput.value = '';
+    logImportHistory(MOTO_COLLECTION, '新車現金資料', rows.length);
   } catch (err) {
     showToast('匯入失敗：' + err.message, true);
   }
 }
 
 function exportCSV() {
-  const header = ['brand', 'model', 'msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
+  const header = ['brand', 'model', 'msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee', 'classification'];
   const lines = [header.join(',')];
   motoCache.forEach(m => {
     lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
@@ -937,178 +1010,6 @@ function exportCSV() {
 function csvEscape(val) {
   const s = String(val);
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-
-// Parses a vehicle-classification CSV (e.g. a financing company's
-// pricelist): title/blank rows are allowed before the real header, which
-// is detected by looking for both "車型分類" and "品牌" on the same line.
-function parseClassificationCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  let headerIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (/車型分類|classification/i.test(lines[i]) && /品牌|brand/i.test(lines[i])) { headerIdx = i; break; }
-  }
-  if (headerIdx === -1) {
-    throw new Error('找不到標題列（需含「車型分類」與「品牌」欄位），請確認是不是正確的分類 CSV。');
-  }
-
-  const rows = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const f = parseCSVLine(lines[i]);
-    if (f.length < 3 || !f[0].trim() || !f[1].trim() || !f[2].trim()) continue;
-    rows.push({
-      classification: f[0].trim().toUpperCase(),
-      brand: f[1].trim(),
-      model: f[2].trim(),
-    });
-  }
-  return rows;
-}
-
-async function importClassificationCSV() {
-  const fileInput = document.getElementById('classificationCsvFileInput');
-  const file = fileInput.files[0];
-  if (!file) {
-    showToast('請先選擇 CSV 檔案', true);
-    return;
-  }
-  const text = await file.text();
-
-  let rows;
-  try {
-    rows = parseClassificationCSV(text);
-  } catch (err) {
-    showToast(err.message, true);
-    return;
-  }
-  if (rows.length === 0) {
-    showToast('沒有解析到任何有效的資料列', true);
-    return;
-  }
-
-  // Only touch models that already exist in our own new-car price list —
-  // a financing company's sheet usually covers far more models than we
-  // actually sell, so anything unmatched is silently skipped, not added.
-  const existingIds = new Set(motoCache.map(m => m.id));
-  const matched = rows.filter(r => existingIds.has(docIdFor(r.brand, r.model)));
-  const unmatchedCount = rows.length - matched.length;
-
-  if (matched.length === 0) {
-    showToast('沒有任何車款跟目前的新車資料庫對得上，請確認品牌/型號名稱是否一致。', true);
-    return;
-  }
-  if (!confirm(`將更新 ${matched.length} 筆車款的分類（另有 ${unmatchedCount} 筆不在我們的新車價目表中，會略過）。確定繼續嗎？`)) return;
-
-  const { doc, writeBatch } = window.__fsMod;
-  const CHUNK = 400;
-  try {
-    for (let i = 0; i < matched.length; i += CHUNK) {
-      const batch = writeBatch(db);
-      matched.slice(i, i + CHUNK).forEach(r => {
-        batch.update(doc(db, MOTO_COLLECTION, docIdFor(r.brand, r.model)), { classification: r.classification });
-      });
-      await batch.commit();
-    }
-    showToast(`已更新 ${matched.length} 筆車款分類。`);
-    fileInput.value = '';
-  } catch (err) {
-    showToast('匯入失敗：' + err.message, true);
-  }
-}
-
-// Parses the "Fleet Sales Price Ledger" export: header + column order can
-// shift around (there's usually a leading blank column), so this finds
-// "Brand"/"Model"/"Sales Price"/"Type" by name in whichever row has both
-// Brand and Model, rather than assuming fixed positions.
-function parseFleetPriceCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  let headerIdx = -1, headerFields = null;
-  for (let i = 0; i < lines.length; i++) {
-    const f = parseCSVLine(lines[i]);
-    if (f.some(c => /^brand$/i.test(c.trim())) && f.some(c => /^model$/i.test(c.trim()))) {
-      headerIdx = i;
-      headerFields = f;
-      break;
-    }
-  }
-  if (headerIdx === -1) {
-    throw new Error('找不到標題列（需含 "Brand" 與 "Model" 欄位），請確認是不是正確的新車價格 CSV。');
-  }
-
-  const colIdx = {
-    brand: headerFields.findIndex(c => /^brand$/i.test(c.trim())),
-    model: headerFields.findIndex(c => /^model$/i.test(c.trim())),
-    price: headerFields.findIndex(c => /sales price/i.test(c.trim())),
-    type: headerFields.findIndex(c => /^type/i.test(c.trim())),
-  };
-
-  const rows = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const f = parseCSVLine(lines[i]);
-    const brand = (f[colIdx.brand] || '').trim();
-    const model = (f[colIdx.model] || '').trim();
-    if (!brand || !model) continue;
-    rows.push({
-      brand,
-      model,
-      msrp: colIdx.price >= 0 ? parseRMValue(f[colIdx.price] || '') : 0,
-      classification: colIdx.type >= 0 ? (f[colIdx.type] || '').trim().toUpperCase() : '',
-    });
-  }
-  return rows;
-}
-
-async function importFleetPriceCSV() {
-  const fileInput = document.getElementById('fleetPriceCsvFileInput');
-  const file = fileInput.files[0];
-  if (!file) {
-    showToast('請先選擇 CSV 檔案', true);
-    return;
-  }
-  const text = await file.text();
-
-  let rows;
-  try {
-    rows = parseFleetPriceCSV(text);
-  } catch (err) {
-    showToast(err.message, true);
-    return;
-  }
-  if (rows.length === 0) {
-    showToast('沒有解析到任何有效的資料列', true);
-    return;
-  }
-  if (!confirm(`即將更新/新增 ${rows.length} 筆新車資料（賣價與車型分類會覆蓋，保險/路稅/車牌費會保留原本設定）。確定繼續嗎？`)) return;
-
-  const existingById = new Map(motoCache.map(m => [m.id, m]));
-  const { doc, writeBatch } = window.__fsMod;
-  const CHUNK = 400;
-  try {
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const batch = writeBatch(db);
-      rows.slice(i, i + CHUNK).forEach(r => {
-        const id = docIdFor(r.brand, r.model);
-        const existing = existingById.get(id);
-        const data = {
-          brand: r.brand,
-          model: r.model,
-          msrp: r.msrp,
-          classification: r.classification || (existing ? (existing.classification || '') : ''),
-          ins1st: existing ? numOr0(existing.ins1st) : 0,
-          ins3rd: existing ? numOr0(existing.ins3rd) : 0,
-          roadTax: existing ? numOr0(existing.roadTax) : 0,
-          plateBooking: existing ? numOr0(existing.plateBooking) : 0,
-          runnerFee: existing ? numOr0(existing.runnerFee) : 0,
-        };
-        batch.set(doc(db, MOTO_COLLECTION, id), data);
-      });
-      await batch.commit();
-    }
-    showToast(`已更新 ${rows.length} 筆新車資料。`);
-    fileInput.value = '';
-  } catch (err) {
-    showToast('匯入失敗：' + err.message, true);
-  }
 }
 
 // ================================================================
@@ -1874,9 +1775,9 @@ async function deleteInstallmentRow(id) {
   }
 }
 
-// Same header-detection approach as parseClassificationCSV, but this
-// import keeps every row as its own record instead of only using it to
-// tag models that already exist in the new-car price list.
+// Detects a header row containing both "車型分類" and "品牌" (title/blank
+// rows before it are fine); every row is kept as its own record, unlike the
+// New Car Cash importer which only ever touches models we actually sell.
 function parseInstallmentDataCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
   let headerIdx = -1;
@@ -1935,6 +1836,7 @@ async function importInstallmentDataCSV() {
     }
     showToast(`匯入完成：共 ${rows.length} 筆分期資料已更新。`);
     fileInput.value = '';
+    logImportHistory(NEW_CAR_INSTALLMENT_COLLECTION, '新車分期資料', rows.length);
   } catch (err) {
     showToast('匯入失敗：' + err.message, true);
   }
@@ -2092,6 +1994,50 @@ async function addStaffAccount() {
     document.getElementById('newStaffIsAdminInput').checked = false;
   } catch (err) {
     showToast('新增失敗：' + describeAuthError(err), true);
+  }
+}
+
+// ================================================================
+// IMPORT HISTORY — a simple audit log so staff can see when each CSV
+// import last ran, per collection. Shared across every importer that
+// bothers to log; New Car Cash and New Car Installment call it today.
+// ================================================================
+function listenImportHistory() {
+  if (unsubscribeImportHistory) return;
+  const { collection, query, orderBy, limit, onSnapshot } = window.__fsMod;
+  const q = query(collection(db, IMPORT_HISTORY_COLLECTION), orderBy('importedAt', 'desc'), limit(30));
+  unsubscribeImportHistory = onSnapshot(q, (snapshot) => {
+    importHistoryCache = snapshot.docs.map(d => d.data());
+    renderImportHistory();
+  }, (err) => {
+    console.error('讀取匯入紀錄失敗：', err.message);
+  });
+}
+
+function renderImportHistory() {
+  renderImportHistoryList('motoImportHistoryBox', 'motoImportHistoryList', MOTO_COLLECTION);
+  renderImportHistoryList('installmentImportHistoryBox', 'installmentImportHistoryList', NEW_CAR_INSTALLMENT_COLLECTION);
+}
+
+function renderImportHistoryList(boxId, listId, collectionName) {
+  const box = document.getElementById(boxId);
+  const list = document.getElementById(listId);
+  if (!box || !list) return;
+  const entries = importHistoryCache.filter(h => h.collectionName === collectionName).slice(0, 5);
+  if (entries.length === 0) {
+    box.classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  list.innerHTML = entries.map(h => `<li>${escapeAttr(new Date(h.importedAt).toLocaleString('zh-TW'))} — ${escapeAttr(h.label || '')}（${numOr0(h.rowCount)} 筆）</li>`).join('');
+}
+
+async function logImportHistory(collectionName, label, rowCount) {
+  const { doc, collection, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(collection(db, IMPORT_HISTORY_COLLECTION)), { collectionName, label, rowCount, importedAt: Date.now() });
+  } catch (err) {
+    console.error('寫入匯入紀錄失敗：', err.message);
   }
 }
 
