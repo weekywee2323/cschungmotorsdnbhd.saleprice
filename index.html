@@ -1085,6 +1085,9 @@ let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models
 
 let usedInventoryData = [];  // Store's own used-bike units for sale, from Firestore only
 let lastUsedSaleCalc = null; // Cached selected used-sale unit object
+
+let installmentData = [];    // New Car installment/financing pricelist — its own catalog, wider than the cash price list
+let installmentBrandMap = {}; // { Brand: [model1, model2, ...] } from installmentData
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
 
@@ -1590,6 +1593,19 @@ async function fetchBikeData() {
           if (firstLoad) { firstLoad = false; resolve(); }
         });
       }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, NEW_CAR_INSTALLMENT_COLLECTION), (snapshot) => {
+          installmentData = snapshot.docs.map(d => d.data());
+          applyInstallmentDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 新車分期資料連線失敗：", err);
+          installmentData = [];
+          applyInstallmentDataUpdate();
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
     ]);
   } catch (err) {
     console.warn("Firebase 載入失敗，改用離線備援資料：", err);
@@ -1599,6 +1615,8 @@ async function fetchBikeData() {
     applyUsedMotoDataUpdate();
     usedInventoryData = [];
     applyUsedInventoryUpdate();
+    installmentData = [];
+    applyInstallmentDataUpdate();
   }
 }
 
@@ -1609,9 +1627,12 @@ function applyMotoDataUpdate() {
   refreshBrandDropdown('new');
   updateLoanButtonsState();
 
-  // Live-refresh an already displayed New Bike result if its price changed
-  if (lastNewCalc) {
-    const fresh = findMoto(lastNewCalc.brand, lastNewCalc.model);
+  // Live-refresh an already displayed New Bike result if its price changed.
+  // Only relevant on the Cash sub-tab — Installment results are refreshed
+  // by applyInstallmentDataUpdate() instead, since they read from a
+  // different catalog.
+  if (lastNewCalc && currentSubTab === 'cash') {
+    const fresh = findEffectiveNewMoto(lastNewCalc.brand, lastNewCalc.model);
     if (fresh) {
       lastNewCalc = fresh;
       renderNewResults();
@@ -1640,6 +1661,48 @@ function applyUsedInventoryUpdate() {
   }
 
   renderUsedLookupTable();
+}
+
+// Rebuilds the New Car Installment brand/model catalog. Only refreshes the
+// on-screen dropdown when the Installment sub-tab is actually active,
+// since Cash uses a completely different map (brandMap / motorcycleData).
+function applyInstallmentDataUpdate() {
+  installmentBrandMap = buildBrandMap(installmentData);
+  if (currentSubTab === 'installment') {
+    refreshBrandDropdown('new');
+  }
+  if (lastNewCalc && currentSubTab === 'installment') {
+    const fresh = findEffectiveNewMoto(lastNewCalc.brand, lastNewCalc.model);
+    if (fresh) {
+      lastNewCalc = fresh;
+      renderNewResults();
+    }
+  }
+}
+
+// Looks up the "moto" record to use on the New Car tab for whichever
+// sub-tab is active. Cash reads straight from the price list. Installment
+// reads its base price (and classification) from the financing pricelist,
+// but still borrows insurance/road tax/plate fees from the cash price
+// list when the same brand+model happens to exist there too — those
+// figures aren't tracked separately per financing catalog.
+function findEffectiveNewMoto(brand, model) {
+  if (currentSubTab === 'installment') {
+    const rec = installmentData.find(d => d.brand === brand && d.model === model);
+    if (!rec) return null;
+    const cashMatch = findMoto(brand, model);
+    return {
+      brand, model,
+      msrp: rec.maxFinancePrice || 0,
+      ins1st: cashMatch ? (cashMatch.ins1st || 0) : 0,
+      ins3rd: cashMatch ? (cashMatch.ins3rd || 0) : 0,
+      roadTax: cashMatch ? (cashMatch.roadTax || 0) : 0,
+      plateBooking: cashMatch ? (cashMatch.plateBooking || 0) : 0,
+      runnerFee: cashMatch ? (cashMatch.runnerFee || 0) : 0,
+      classification: rec.classification || (cashMatch ? (cashMatch.classification || '') : ''),
+    };
+  }
+  return findMoto(brand, model);
 }
 
 function docIdForPlate(plateNo) {
@@ -1839,6 +1902,15 @@ function buildBrandMap(data) {
   return sorted;
 }
 
+// New Car has two independent catalogs depending on the Cash/Installment
+// sub-tab: Cash uses the regular price list, Installment uses the (much
+// larger) financing pricelist so models not sold for cash still show up.
+function getSectionBrandMap(section) {
+  if (section === 'used') return usedBrandMap;
+  if (section === 'new' && currentSubTab === 'installment') return installmentBrandMap;
+  return brandMap;
+}
+
 // Repopulates a section's brand/model dropdowns from its current data map,
 // preserving whatever brand/model the user already had selected if it's
 // still valid in the refreshed data.
@@ -1847,7 +1919,7 @@ function refreshBrandDropdown(section) {
   const modelEl = document.getElementById(section + 'Model');
   const brand = brandEl.value;
   const model = modelEl.value;
-  const map = section === 'used' ? usedBrandMap : brandMap;
+  const map = getSectionBrandMap(section);
   populateBrands(section);
   if (brand && map[brand]) {
     brandEl.value = brand;
@@ -1860,7 +1932,7 @@ function refreshBrandDropdown(section) {
 // DROPDOWNS POPULATE
 // ================================================================
 function populateBrands(section) {
-  const map = section === 'used' ? usedBrandMap : brandMap;
+  const map = getSectionBrandMap(section);
   const sel = document.getElementById(section + 'Brand');
   const t = i18n[currentLang];
   sel.innerHTML = `<option value="">${t.phSelect}</option>`;
@@ -1874,7 +1946,7 @@ function populateBrands(section) {
 }
 
 function onBrandChange(section) {
-  const map = section === 'used' ? usedBrandMap : brandMap;
+  const map = getSectionBrandMap(section);
   const brand = document.getElementById(section + 'Brand').value;
   const modelSel = document.getElementById(section + 'Model');
   const t = i18n[currentLang];
@@ -1916,6 +1988,7 @@ function switchTab(tab) {
 }
 
 function switchSubTab(subTab) {
+  const catalogChanged = subTab !== currentSubTab;
   currentSubTab = subTab;
   const btnCash = document.getElementById('subTabCash');
   const btnInst = document.getElementById('subTabInstallment');
@@ -1943,6 +2016,19 @@ function switchSubTab(subTab) {
     if (lastNewCalc) {
       document.getElementById('newLoanAction').classList.remove('hidden');
     }
+  }
+
+  // Cash and Installment are separate catalogs — a model picked under one
+  // doesn't necessarily exist (or price the same) under the other, so
+  // switching resets the picker and any result currently on screen.
+  if (catalogChanged) {
+    lastNewCalc = null;
+    document.getElementById('newSelectedInfo').classList.add('hidden');
+    document.getElementById('newSellingPrice').value = '';
+    document.getElementById('sellingPriceHint').textContent = '選擇車型後會顯示可議價範圍';
+    document.getElementById('newLoanAction').classList.add('hidden');
+    refreshBrandDropdown('new');
+    setLoanRateRestriction(null);
   }
 
   if (lastNewCalc) renderNewResults();
@@ -2005,7 +2091,7 @@ function calcNew() {
   if (!brand) { alert(t.alertBrand); return; }
   if (!model) { alert(t.alertModel); return; }
 
-  const moto = findMoto(brand, model);
+  const moto = findEffectiveNewMoto(brand, model);
   if (!moto) { alert(t.alertModel); return; }
 
   lastNewCalc = moto;
