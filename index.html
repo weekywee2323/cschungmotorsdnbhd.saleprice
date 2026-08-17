@@ -543,7 +543,7 @@
 
             <!-- Send to Loan Button -->
             <div id="newLoanAction" class="hidden mt-4">
-              <button onclick="sendToLoanCalculator()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+              <button onclick="sendToLoanCalculator('new')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
                 <svg class="w-4 h-4 text-indigo-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 <span id="loanActionText">⚡ 帶入此金額至【借貸計算器】試算</span>
               </button>
@@ -562,6 +562,18 @@
     <!-- PANEL: USED CAR SALE (store's own used-bike inventory)       -->
     <!-- ============================================================ -->
     <section id="panelUsedSale" class="tab-panel">
+      <!-- Sub Tabs Cash / Installment -->
+      <div class="flex justify-center mb-6">
+        <div class="bg-slate-100 rounded-xl p-1 flex gap-1 border border-slate-200">
+          <button id="usedSaleSubTabCash" class="sub-tab-btn active px-5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600" onclick="switchUsedSaleSubTab('cash')">
+            現金 (Cash)
+          </button>
+          <button id="usedSaleSubTabInstallment" class="sub-tab-btn px-5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600" onclick="switchUsedSaleSubTab('installment')">
+            分期 (Installment)
+          </button>
+        </div>
+      </div>
+
       <div class="grid lg:grid-cols-5 gap-6">
         <!-- INPUT CARD -->
         <div class="lg:col-span-2 card-light rounded-2xl p-6 sm:p-7">
@@ -738,7 +750,7 @@
             </div>
 
             <div id="usedSaleLoanAction" class="hidden mt-4">
-              <button onclick="sendToLoanCalculator()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+              <button onclick="sendToLoanCalculator('usedSale')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
                 <svg class="w-4 h-4 text-indigo-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 <span id="usedSaleLoanActionText">⚡ 帶入此金額至【借貸計算器】試算</span>
               </button>
@@ -1061,6 +1073,14 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- Generate Screenshot-friendly Deal Record -->
+            <div id="loanReceiptAction" class="hidden mt-4">
+              <button onclick="showLoanReceipt()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl text-xs font-extrabold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                產生成交紀錄（可截圖）
+              </button>
+            </div>
           </div>
 
           <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
@@ -1068,6 +1088,72 @@
             <span data-i18n="disclaimer">以上價格僅供參考，實際價格請以門市報價為準。</span>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PANEL: LOAN DEAL RECORD (screenshot-friendly summary — only  -->
+    <!-- reachable via the Loan Calculator's "產生成交紀錄" button)    -->
+    <!-- ============================================================ -->
+    <section id="panelReceipt" class="tab-panel">
+      <div class="max-w-lg mx-auto card-light rounded-2xl p-6 sm:p-8">
+        <div class="text-center mb-6">
+          <h2 class="text-sm font-black uppercase tracking-wide text-black">CS CHUNG SENG MOTOR SDN BHD</h2>
+          <p class="text-xs text-slate-500 mt-1">貸款成交紀錄</p>
+          <p class="text-[10px] text-slate-400 mt-0.5" id="receiptDateTime">—</p>
+        </div>
+
+        <div class="space-y-3 mb-6">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+              <p class="text-[10px] uppercase font-bold text-slate-400">客戶姓名</p>
+              <p class="text-sm font-bold text-slate-800" id="receiptCustomerName">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+              <p class="text-[10px] uppercase font-bold text-slate-400">客戶電話</p>
+              <p class="text-sm font-bold text-slate-800" id="receiptCustomerPhone">—</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+            <p class="text-[10px] uppercase font-bold text-slate-400">選購車款</p>
+            <p class="text-sm font-bold text-slate-800" id="receiptVehicle">—</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">貸款本金</td>
+                <td class="px-5 py-3 text-right font-semibold text-slate-800" id="receiptPrincipal">—</td>
+              </tr>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">貸款期限</td>
+                <td class="px-5 py-3 text-right font-semibold text-slate-800" id="receiptTenure">—</td>
+              </tr>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">月利率（平息）</td>
+                <td class="px-5 py-3 text-right font-semibold text-slate-800" id="receiptRate">—</td>
+              </tr>
+              <tr class="res-row border-b border-slate-200 bg-indigo-50/50">
+                <td class="px-5 py-3.5 text-slate-800 font-extrabold">每月供款</td>
+                <td class="px-5 py-3.5 text-right font-black text-lg text-indigo-700" id="receiptMonthly">—</td>
+              </tr>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">總利息</td>
+                <td class="px-5 py-3 text-right font-bold text-rose-600" id="receiptInterest">—</td>
+              </tr>
+              <tr class="res-row">
+                <td class="px-5 py-3.5 text-slate-800 font-extrabold">總還款額</td>
+                <td class="px-5 py-3.5 text-right font-extrabold text-slate-800" id="receiptRepay">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-[10px] text-slate-400 text-center mb-6">以上金額僅供參考，實際貸款條件請以銀行/財務公司核准為準。</p>
+
+        <button onclick="closeLoanReceipt()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold transition-all">← 返回貸款計算器</button>
       </div>
     </section>
 
@@ -1101,6 +1187,10 @@ let usedBrandMap = {};       // { Brand: [model1, model2, ...] } — only models
 
 let usedInventoryData = [];  // Store's own used-bike units for sale, from Firestore only
 let lastUsedSaleCalc = null; // Cached selected used-sale unit object
+let currentUsedSaleSubTab = 'cash'; // 'cash' or 'installment' — same inventory either way, only the loan hand-off button differs
+
+let loanSourceInfo = null;   // { source: 'new'|'usedSale', brand, model } — set when a Cash/Installment flow hands its vehicle off to the Loan Calculator
+let lastLoanCalc = null;     // Cached last successful loan computation, for the deal-record page
 
 let installmentData = [];    // New Car installment/financing pricelist — its own catalog, wider than the cash price list
 let installmentBrandMap = {}; // { Brand: [model1, model2, ...] } from installmentData
@@ -1886,8 +1976,15 @@ function renderUsedSaleResults() {
 
   document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
 
-  document.getElementById('usedSaleLoanAction').classList.remove('hidden');
-  document.getElementById('usedSaleLoanActionText').textContent = `⚡ 帶入此金額 (${fmt(netPay)}) 至【借貸計算器】試算`;
+  // Only offer to jump to the Loan Calculator on the Installment sub-tab —
+  // Cash sales aren't financed, so there's nothing to send there.
+  const usedLoanSection = document.getElementById('usedSaleLoanAction');
+  if (currentUsedSaleSubTab === 'installment') {
+    usedLoanSection.classList.remove('hidden');
+    document.getElementById('usedSaleLoanActionText').textContent = `⚡ 帶入此金額 (${fmt(netPay)}) 至【借貸計算器】試算`;
+  } else {
+    usedLoanSection.classList.add('hidden');
+  }
 
   document.querySelectorAll('#usedSaleResultBody tr').forEach((row, i) => {
     row.style.animation = 'none';
@@ -2018,6 +2115,13 @@ function onBrandChange(section) {
 // TAB SWITCH NAVIGATION
 // ================================================================
 function switchTab(tab) {
+  // panelReceipt isn't part of the normal nav (it's only reached via the
+  // Loan Calculator's "產生成交紀錄" button) so it's not in the tabs list
+  // below — it has to be hidden explicitly here, or it would stay stacked
+  // on top of whatever panel is switched to next.
+  const receiptPanel = document.getElementById('panelReceipt');
+  if (receiptPanel) receiptPanel.classList.remove('active');
+
   const tabs = ['new', 'usedSale', 'used', 'usedLookup', 'loan'];
   tabs.forEach(t => {
     const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -2080,6 +2184,33 @@ function switchSubTab(subTab) {
   }
 
   if (lastNewCalc) renderNewResults();
+}
+
+// Used Sale's Cash and Installment sub-tabs both read the same store
+// inventory (unlike New Car, which has two separate catalogs) — switching
+// only changes whether the "send to Loan Calculator" button is offered.
+function switchUsedSaleSubTab(subTab) {
+  currentUsedSaleSubTab = subTab;
+  const btnCash = document.getElementById('usedSaleSubTabCash');
+  const btnInst = document.getElementById('usedSaleSubTabInstallment');
+
+  if (subTab === 'cash') {
+    btnCash.classList.add('active', 'text-white');
+    btnCash.classList.remove('text-slate-600');
+    btnInst.classList.remove('active', 'text-white');
+    btnInst.classList.add('text-slate-600');
+  } else {
+    btnInst.classList.add('active', 'text-white');
+    btnInst.classList.remove('text-slate-600');
+    btnCash.classList.remove('active', 'text-white');
+    btnCash.classList.add('text-slate-600');
+  }
+
+  if (lastUsedSaleCalc) {
+    renderUsedSaleResults();
+  } else {
+    document.getElementById('usedSaleLoanAction').classList.add('hidden');
+  }
 }
 
 // ================================================================
@@ -2574,7 +2705,12 @@ function applyNetOTRToLoan() {
   calcLoan();
 }
 
-function sendToLoanCalculator() {
+function sendToLoanCalculator(source) {
+  if (source === 'new' && lastNewCalc) {
+    loanSourceInfo = { source: 'new', brand: lastNewCalc.brand, model: lastNewCalc.model };
+  } else if (source === 'usedSale' && lastUsedSaleCalc) {
+    loanSourceInfo = { source: 'usedSale', brand: lastUsedSaleCalc.brand, model: lastUsedSaleCalc.model, plateNo: lastUsedSaleCalc.plateNo };
+  }
   if (lastNetPayVal > 0) {
     document.getElementById('loanAmount').value = lastNetPayVal;
   }
@@ -2596,6 +2732,8 @@ function calcLoan() {
     document.getElementById('valLoanPrincipal').textContent = '—';
     document.getElementById('valLoanInterest').textContent = '—';
     document.getElementById('valLoanRepay').textContent = '—';
+    lastLoanCalc = null;
+    document.getElementById('loanReceiptAction').classList.add('hidden');
     return;
   }
 
@@ -2611,6 +2749,51 @@ function calcLoan() {
   document.getElementById('valLoanPrincipal').textContent = fmt(principal);
   document.getElementById('valLoanInterest').textContent = fmt(totalInterest);
   document.getElementById('valLoanRepay').textContent = fmt(totalRepayment);
+
+  lastLoanCalc = { principal, tenure: loanTenure, rate: loanRate, monthlyInstalment, totalInterest, totalRepayment };
+  document.getElementById('loanReceiptAction').classList.remove('hidden');
+}
+
+// ================================================================
+// LOAN DEAL RECORD — a screenshot-friendly one-page summary of the last
+// loan calculation (customer info + vehicle + loan figures), reached only
+// via the "產生成交紀錄" button on the Loan Calculator's result card.
+// ================================================================
+function showLoanReceipt() {
+  if (!lastLoanCalc) return;
+  renderLoanReceipt();
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panelReceipt').classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+}
+
+function closeLoanReceipt() {
+  switchTab('loan');
+}
+
+function renderLoanReceipt() {
+  const c = lastLoanCalc;
+  if (!c) return;
+
+  document.getElementById('receiptDateTime').textContent = new Date().toLocaleString('zh-TW');
+  document.getElementById('receiptCustomerName').textContent = localStorage.getItem('customerName') || '—';
+  document.getElementById('receiptCustomerPhone').textContent = localStorage.getItem('customerPhone') || '—';
+
+  let vehicleText = '—';
+  if (loanSourceInfo && loanSourceInfo.brand && loanSourceInfo.model) {
+    vehicleText = `${loanSourceInfo.brand} ${loanSourceInfo.model}`;
+    if (loanSourceInfo.source === 'usedSale' && loanSourceInfo.plateNo) {
+      vehicleText += `（車牌 ${loanSourceInfo.plateNo}）`;
+    }
+  }
+  document.getElementById('receiptVehicle').textContent = vehicleText;
+
+  document.getElementById('receiptPrincipal').textContent = fmt(c.principal);
+  document.getElementById('receiptTenure').textContent = `${c.tenure} 年`;
+  document.getElementById('receiptRate').textContent = `${c.rate}%`;
+  document.getElementById('receiptMonthly').textContent = fmt(c.monthlyInstalment);
+  document.getElementById('receiptInterest').textContent = fmt(c.totalInterest);
+  document.getElementById('receiptRepay').textContent = fmt(c.totalRepayment);
 }
 
 // ================================================================
