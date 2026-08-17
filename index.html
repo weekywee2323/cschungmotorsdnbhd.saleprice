@@ -332,6 +332,16 @@
           </h3>
           <p class="text-xs text-slate-500 mb-5" data-i18n="newInputDesc">選擇車型以查詢完整定價</p>
 
+          <!-- Customer Info -->
+          <div class="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-slate-700">客戶資訊</p>
+              <button onclick="clearCustomerInfo()" class="text-[10px] font-bold text-rose-500 hover:text-rose-700">清除（新客戶）</button>
+            </div>
+            <input id="newCustomerName" type="text" class="form-ctrl w-full rounded-lg px-3 py-2 text-xs mb-2" placeholder="客戶姓名" oninput="onCustomerNameInput(this.value)" />
+            <input id="newCustomerPhone" type="text" class="form-ctrl w-full rounded-lg px-3 py-2 text-xs" placeholder="客戶電話" oninput="onCustomerPhoneInput(this.value)" />
+          </div>
+
           <!-- Brand -->
           <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelBrand">品牌</label>
           <select id="newBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onBrandChange('new')">
@@ -555,6 +565,16 @@
             二手車查詢
           </h3>
           <p class="text-xs text-slate-500 mb-5">輸入車牌查詢店內現有二手車庫存定價</p>
+
+          <!-- Customer Info -->
+          <div class="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-slate-700">客戶資訊</p>
+              <button onclick="clearCustomerInfo()" class="text-[10px] font-bold text-rose-500 hover:text-rose-700">清除（新客戶）</button>
+            </div>
+            <input id="usedSaleCustomerName" type="text" class="form-ctrl w-full rounded-lg px-3 py-2 text-xs mb-2" placeholder="客戶姓名" oninput="onCustomerNameInput(this.value)" />
+            <input id="usedSaleCustomerPhone" type="text" class="form-ctrl w-full rounded-lg px-3 py-2 text-xs" placeholder="客戶電話" oninput="onCustomerPhoneInput(this.value)" />
+          </div>
 
           <label class="block mb-1 text-xs font-bold text-slate-600">車牌</label>
           <div class="relative mb-4">
@@ -1449,6 +1469,45 @@ function showCalculatorApp() {
   indicator.classList.remove('hidden');
   indicator.classList.add('flex');
   document.getElementById('staffIndicatorName').textContent = currentStaffName ? `👤 ${currentStaffName}` : '';
+  loadCustomerInfo();
+}
+
+// Customer name/phone are stored in this browser's localStorage (not
+// Firestore) — purely a scratch note so a salesman can screenshot the
+// price breakdown together with who it's for. Survives page refreshes on
+// purpose; only "清除（新客戶）" wipes it, never a reload or tab switch.
+function loadCustomerInfo() {
+  const name = localStorage.getItem('customerName') || '';
+  const phone = localStorage.getItem('customerPhone') || '';
+  ['new', 'usedSale'].forEach(prefix => {
+    const nameEl = document.getElementById(prefix + 'CustomerName');
+    const phoneEl = document.getElementById(prefix + 'CustomerPhone');
+    if (nameEl) nameEl.value = name;
+    if (phoneEl) phoneEl.value = phone;
+  });
+}
+
+function syncCustomerField(key, storageKey, value) {
+  localStorage.setItem(storageKey, value);
+  ['new', 'usedSale'].forEach(prefix => {
+    const el = document.getElementById(prefix + key);
+    if (el && el.value !== value) el.value = value;
+  });
+}
+
+function onCustomerNameInput(value) {
+  syncCustomerField('CustomerName', 'customerName', value);
+}
+
+function onCustomerPhoneInput(value) {
+  syncCustomerField('CustomerPhone', 'customerPhone', value);
+}
+
+function clearCustomerInfo() {
+  if (!confirm('確定要清除客戶姓名/電話嗎？（開始新客戶時使用）')) return;
+  localStorage.removeItem('customerName');
+  localStorage.removeItem('customerPhone');
+  loadCustomerInfo();
 }
 
 function showLoginError(msg) {
