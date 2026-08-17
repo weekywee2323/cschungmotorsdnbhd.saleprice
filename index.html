@@ -991,7 +991,7 @@
               <button onclick="setRate(0.75)" data-val="0.75" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.75%</button>
               <button onclick="setRate(0.833)" data-val="0.833" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">0.833%</button>
             </div>
-            <p id="loanRateRestrictionNote" class="hidden mt-2 text-[10px] font-bold text-amber-600">此車型（MOPED）僅適用 0.75% / 0.833% 利率</p>
+            <p id="loanRateRestrictionNote" class="hidden mt-2 text-[10px] font-bold text-amber-600"></p>
           </div>
 
           <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcLoan()">
@@ -1110,11 +1110,20 @@ let lastNetPayVal = 0;          // Net customer balance (OTR - Trade-In)
 let loanTenure = 5;
 let loanRate = 0.55;
 let loanRateRestriction = null; // e.g. [0.75, 0.833] for MOPED-classified bikes, or null for no restriction
+let loanTenureRestriction = null; // e.g. [2, 3, 4, 5] for MOPED-classified bikes, or null for no restriction
 
 function setLoanRateRestriction(rates) {
   loanRateRestriction = rates;
   if (rates && !rates.some(r => Math.abs(r - loanRate) < 0.001)) {
     loanRate = rates[0];
+  }
+  updateLoanButtonsState();
+}
+
+function setLoanTenureRestriction(years) {
+  loanTenureRestriction = years;
+  if (years && !years.includes(loanTenure)) {
+    loanTenure = years[years.length - 1];
   }
   updateLoanButtonsState();
 }
@@ -1790,7 +1799,8 @@ function renderUsedSaleResults() {
   const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
   const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
-  setLoanRateRestriction(null); // classification-based rate limits are a New Car rule only
+  setLoanRateRestriction(null); // classification-based loan limits are a New Car rule only
+  setLoanTenureRestriction(null);
 
   document.getElementById('usedSaleSelectedInfo').classList.remove('hidden');
   document.getElementById('usedSaleSelectedName').textContent = `${unit.brand} ${unit.model}`;
@@ -2029,6 +2039,7 @@ function switchSubTab(subTab) {
     document.getElementById('newLoanAction').classList.add('hidden');
     refreshBrandDropdown('new');
     setLoanRateRestriction(null);
+    setLoanTenureRestriction(null);
   }
 
   if (lastNewCalc) renderNewResults();
@@ -2166,7 +2177,9 @@ function renderNewResults() {
   const downPayment = Math.max(0, numOr0(document.getElementById('newDownPayment').value));
   const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
-  setLoanRateRestriction(moto.classification === 'MOPED' ? [0.75, 0.833] : null);
+  const isMoped = moto.classification === 'MOPED';
+  setLoanRateRestriction(isMoped ? [0.75, 0.833] : null);
+  setLoanTenureRestriction(isMoped ? [2, 3, 4, 5] : null);
 
   document.getElementById('valInsurance').textContent = fmt(insurance);
   document.getElementById('valRoadTax').textContent = fmt(moto.roadTax || 0);
@@ -2435,10 +2448,15 @@ function updateLoanButtonsState() {
     btnApplyNet.classList.add('hidden');
   }
 
-  // Highlight Tenure active selection (Solid colors)
+  // Highlight Tenure active selection (Solid colors) — same restriction
+  // pattern as the rate buttons (e.g. MOPED tops out at 5 years).
   document.querySelectorAll('#tenureButtonGroup button').forEach(btn => {
     const val = parseInt(btn.getAttribute('data-val'));
-    if (val === loanTenure) {
+    const allowed = !loanTenureRestriction || loanTenureRestriction.includes(val);
+    btn.disabled = !allowed;
+    if (!allowed) {
+      btn.className = "btn-select-item py-2.5 text-xs font-bold border border-slate-100 rounded-xl bg-slate-50 text-slate-300 cursor-not-allowed";
+    } else if (val === loanTenure) {
       btn.className = "btn-select-item py-2.5 text-xs font-black bg-accent-blue text-white border-2 border-accent-blue rounded-xl shadow-md transform scale-[1.02]";
     } else {
       btn.className = "btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all";
@@ -2462,7 +2480,15 @@ function updateLoanButtonsState() {
   });
 
   const restrictionNote = document.getElementById('loanRateRestrictionNote');
-  restrictionNote.classList.toggle('hidden', !loanRateRestriction);
+  const notes = [];
+  if (loanTenureRestriction) notes.push(`最長可貸 ${loanTenureRestriction[loanTenureRestriction.length - 1]} 年`);
+  if (loanRateRestriction) notes.push(`僅適用 ${loanRateRestriction.map(r => r + '%').join(' / ')} 利率`);
+  if (notes.length > 0) {
+    restrictionNote.textContent = `此車型（MOPED）${notes.join('，')}`;
+    restrictionNote.classList.remove('hidden');
+  } else {
+    restrictionNote.classList.add('hidden');
+  }
 }
 
 function setTenure(years) {
