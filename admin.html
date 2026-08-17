@@ -104,6 +104,7 @@
           <button id="adminTabNew" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('new')">新車價格管理</button>
           <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車收購行情</button>
           <button id="adminTabInventory" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('inventory')">二手車庫存管理</button>
+          <button id="adminTabInstallment" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('installment')">新車分期資料</button>
           <button id="adminTabStaff" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('staff')">員工帳號管理</button>
         </div>
       </div>
@@ -425,6 +426,52 @@
       </section>
 
       <!-- ============================================================ -->
+      <!-- NEW CAR INSTALLMENT DATA TAB — a separate reference database, -->
+      <!-- independent of the new-car price list                        -->
+      <!-- ============================================================ -->
+      <section id="adminPanelInstallment" class="admin-tab-panel">
+
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          匯入新車分期資料
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：車型分類, 品牌, 車型名稱, 售價 Max Finance Price（含標題列，前面可以有標題/空白列，格式自動辨識）。這是獨立的資料庫，會把檔案裡全部的資料都存起來，不會跟「新車價格管理」的車款比對或篩選。</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="installmentCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importInstallmentDataCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportInstallmentDataCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+      </div>
+
+      <div class="card-light rounded-2xl p-6">
+        <h2 class="text-base font-bold mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          目前分期資料（共 <span id="installmentCount">0</span> 筆，即時同步）
+        </h2>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <input id="installmentSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onInstallmentSearchInput()" />
+          <button id="installmentDeleteSelectedBtn" onclick="deleteSelectedInstallment()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="installmentSelectAllChk" onchange="toggleInstallmentSelectAll(this.checked)"></th>
+                <th class="text-left px-3 py-3 font-bold">車型分類</th>
+                <th class="text-left px-3 py-3 font-bold">品牌</th>
+                <th class="text-left px-3 py-3 font-bold">型號</th>
+                <th class="text-right px-3 py-3 font-bold">Max Finance Price</th>
+                <th class="text-left px-3 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="installmentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      </section>
+
+      <!-- ============================================================ -->
       <!-- STAFF ACCOUNTS TAB                                            -->
       <!-- ============================================================ -->
       <section id="adminPanelStaff" class="admin-tab-panel">
@@ -499,14 +546,19 @@ let motoCache = [];
 let usedMotoCache = [];
 let staffCache = [];
 let inventoryCache = [];
+let installmentCache = [];
 let unsubscribeMoto = null;
 let unsubscribeUsedMoto = null;
 let unsubscribeSettings = null;
 let unsubscribeStaff = null;
 let unsubscribeInventory = null;
+let unsubscribeInstallment = null;
 
 let inventorySearchTerm = '';
 let selectedInventoryIds = new Set();
+
+let installmentSearchTerm = '';
+let selectedInstallmentIds = new Set();
 
 let motoSearchTerm = '';
 let selectedMotoIds = new Set();
@@ -554,12 +606,13 @@ async function initFirebase() {
     listenTradeInSettings();
     listenStaffData();
     listenInventoryData();
+    listenInstallmentData();
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
 
 function switchAdminTab(tab) {
-  ['new', 'used', 'inventory', 'staff'].forEach(t => {
+  ['new', 'used', 'inventory', 'installment', 'staff'].forEach(t => {
     const btn = document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('adminPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     btn.classList.toggle('active', t === tab);
@@ -614,6 +667,7 @@ async function logout() {
   if (unsubscribeSettings) { unsubscribeSettings(); unsubscribeSettings = null; }
   if (unsubscribeStaff) { unsubscribeStaff(); unsubscribeStaff = null; }
   if (unsubscribeInventory) { unsubscribeInventory(); unsubscribeInventory = null; }
+  if (unsubscribeInstallment) { unsubscribeInstallment(); unsubscribeInstallment = null; }
   await window.__authMod.signOut(auth);
 }
 
@@ -1678,6 +1732,225 @@ function exportInventoryCSV() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `used-inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// NEW CAR INSTALLMENT DATA — a standalone reference database, independent
+// of the new-car price list. Every row from the source sheet is kept
+// (including models we don't currently sell), unlike the classification
+// import which only tags models already in our own price list.
+// ================================================================
+function listenInstallmentData() {
+  if (unsubscribeInstallment) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeInstallment = onSnapshot(collection(db, NEW_CAR_INSTALLMENT_COLLECTION), (snapshot) => {
+    installmentCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    installmentCache.sort((a, b) => `${a.brand}${a.model}`.localeCompare(`${b.brand}${b.model}`));
+    renderInstallmentTable();
+  }, (err) => {
+    showToast('讀取分期資料失敗：' + err.message, true);
+  });
+}
+
+function getFilteredInstallment() {
+  const q = installmentSearchTerm.trim().toLowerCase();
+  if (!q) return installmentCache;
+  return installmentCache.filter(m => `${m.brand || ''} ${m.model || ''}`.toLowerCase().includes(q));
+}
+
+function onInstallmentSearchInput() {
+  installmentSearchTerm = document.getElementById('installmentSearchInput').value;
+  renderInstallmentTable();
+}
+
+function toggleInstallmentSelect(id, checked) {
+  if (checked) selectedInstallmentIds.add(id); else selectedInstallmentIds.delete(id);
+  updateInstallmentBulkBar();
+}
+
+function toggleInstallmentSelectAll(checked) {
+  const filtered = getFilteredInstallment();
+  filtered.forEach(m => checked ? selectedInstallmentIds.add(m.id) : selectedInstallmentIds.delete(m.id));
+  renderInstallmentTable();
+}
+
+function updateInstallmentBulkBar() {
+  const btn = document.getElementById('installmentDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedInstallmentIds.size})`;
+  btn.disabled = selectedInstallmentIds.size === 0;
+}
+
+async function deleteSelectedInstallment() {
+  const ids = [...selectedInstallmentIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆分期資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedInstallmentIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderInstallmentTable() {
+  document.getElementById('installmentCount').textContent = installmentCache.length;
+  const filtered = getFilteredInstallment();
+  const tbody = document.getElementById('installmentTableBody');
+  updateInstallmentBulkBar();
+
+  const allChk = document.getElementById('installmentSelectAllChk');
+  if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedInstallmentIds.has(m.id));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 text-xs">${installmentCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入分期資料。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    return;
+  }
+
+  const CLASSIFICATIONS = ['', 'MOPED', 'BIG BIKE', 'SUPERBIKE', 'EV', 'ATV'];
+  tbody.innerHTML = filtered.map(m => `
+    <tr data-id="${m.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedInstallmentIds.has(m.id) ? 'checked' : ''} onchange="toggleInstallmentSelect('${m.id}', this.checked)"></td>
+      <td class="px-2 py-2">
+        <select class="in-classification form-ctrl w-28 rounded-lg px-2 py-1.5 text-xs">
+          ${CLASSIFICATIONS.map(c => `<option value="${c}" ${((m.classification || '') === c) ? 'selected' : ''}>${c || '（未設定）'}</option>`).join('')}
+        </select>
+      </td>
+      <td class="px-2 py-2"><input class="in-brand form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
+      <td class="px-2 py-2"><input class="in-model form-ctrl w-36 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
+      <td class="px-2 py-2"><input type="number" class="in-maxFinancePrice form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.maxFinancePrice)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveInstallmentRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteInstallmentRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function readInstallmentRowData(tr) {
+  return {
+    classification: tr.querySelector('.in-classification').value,
+    brand: tr.querySelector('.in-brand').value.trim(),
+    model: tr.querySelector('.in-model').value.trim(),
+    maxFinancePrice: numOr0(tr.querySelector('.in-maxFinancePrice').value),
+  };
+}
+
+async function saveInstallmentRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = readInstallmentRowData(tr);
+  if (!data.brand || !data.model) {
+    showToast('品牌與型號不可留空', true);
+    return;
+  }
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, id), data);
+    showToast(`已儲存：${data.brand} ${data.model}`);
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteInstallmentRow(id) {
+  const row = installmentCache.find(m => m.id === id);
+  const label = row ? `${row.brand} ${row.model}` : id;
+  if (!confirm(`確定要刪除「${label}」嗎？此動作無法復原。`)) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+// Same header-detection approach as parseClassificationCSV, but this
+// import keeps every row as its own record instead of only using it to
+// tag models that already exist in the new-car price list.
+function parseInstallmentDataCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/車型分類|classification/i.test(lines[i]) && /品牌|brand/i.test(lines[i])) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含「車型分類」與「品牌」欄位），請確認是不是正確的分期資料 CSV。');
+  }
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.length < 3 || !f[0].trim() || !f[1].trim() || !f[2].trim()) continue;
+    rows.push({
+      classification: f[0].trim().toUpperCase(),
+      brand: f[1].trim(),
+      model: f[2].trim(),
+      maxFinancePrice: parseRMValue(f[3] || ''),
+    });
+  }
+  return rows;
+}
+
+async function importInstallmentDataCSV() {
+  const fileInput = document.getElementById('installmentCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseInstallmentDataCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將匯入 ${rows.length} 筆分期資料（同品牌+型號會覆蓋原本資料）。確定繼續嗎？`)) return;
+
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => {
+        batch.set(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, docIdFor(r.brand, r.model)), r);
+      });
+      await batch.commit();
+    }
+    showToast(`匯入完成：共 ${rows.length} 筆分期資料已更新。`);
+    fileInput.value = '';
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportInstallmentDataCSV() {
+  const header = ['classification', 'brand', 'model', 'maxFinancePrice'];
+  const lines = [header.join(',')];
+  installmentCache.forEach(m => {
+    lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `new-car-installment-export-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
