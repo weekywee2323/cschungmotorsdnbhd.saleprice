@@ -386,6 +386,9 @@
               <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
               <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
             </label>
+            <button id="btnGoInsuranceCalc" onclick="goToInsuranceCalc('new')" class="hidden w-full text-[11px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
+              <span>🧮</span> 前往保費/路稅計算器（依車型・CC・客戶年齡查詢）
+            </button>
           </div>
 
           <button class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcNew()">
@@ -529,13 +532,26 @@
                       = 最終需補差額 / 實際付款金額 (Final Amount To Pay)
                     </td>
                   </tr>
-                  <!-- Customer Pay Net OTR -->
+                  <!-- Customer Pay Net OTR (vehicle price only — insurance/road tax/other -->
+                  <!-- fees are never financed, so they're excluded here) -->
                   <tr id="rowNetPayMain" class="res-row border-t-2 border-accent-blue/30 bg-blue-50/30">
                     <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full bg-accent-blue shadow-sm"></span>
                       <span id="labelNetPay" data-i18n="rowNetPayCash">等於：最終需補差額 / 實際付款金額</span>
                     </td>
                     <td class="px-5 py-4 text-right font-black text-2xl text-accent-blue" id="valNetPay">—</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含保費/路稅/其他費用（不會計入貸款金額，需另外現金支付）</td>
+                  </tr>
+                  <!-- Grand Total: what the customer actually pays out overall, financed -->
+                  <!-- amount plus insurance/road tax/other fees paid separately -->
+                  <tr id="rowGrandTotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
+                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
+                      客戶總支出（含保費/路稅/其他費用）
+                    </td>
+                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="valGrandTotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -741,9 +757,19 @@
                   <tr id="usedSaleRowNetPayMain" class="res-row border-t-2 border-emerald-500/30 bg-emerald-50/30">
                     <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full bg-emerald-600 shadow-sm"></span>
-                      應付金額
+                      應付金額（車輛本身，不含保費/路稅/驗車費）
                     </td>
                     <td class="px-5 py-4 text-right font-black text-2xl text-emerald-600" id="usedSaleValNetPay">—</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含保費/路稅/驗車費（不會計入貸款金額，需另外現金支付）</td>
+                  </tr>
+                  <tr id="usedSaleRowGrandTotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
+                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
+                      客戶總支出（含保費/路稅/驗車費）
+                    </td>
+                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="usedSaleValGrandTotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -1092,6 +1118,59 @@
     </section>
 
     <!-- ============================================================ -->
+    <!-- PANEL: INSURANCE / ROAD TAX CALCULATOR — only reachable via   -->
+    <!-- the "前往保費/路稅計算器" button on the New Car page          -->
+    <!-- ============================================================ -->
+    <section id="panelInsuranceCalc" class="tab-panel">
+      <div class="max-w-lg mx-auto card-light rounded-2xl p-6 sm:p-8">
+        <h3 class="text-base font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+          保費/路稅計算器
+        </h3>
+        <p class="text-xs text-slate-500 mb-5">依車型分類、排氣量 (CC) 與客戶年齡查詢保費，路稅則依排氣量查詢。這裡算出的金額不會計入貸款金額，回到新車頁面後會單獨顯示。</p>
+
+        <div id="insCalcVehicleInfo" class="mb-5 px-4 py-3 rounded-xl bg-sky-50/50 border border-sky-100">
+          <p class="text-[10px] uppercase font-bold text-slate-400">車款</p>
+          <p class="text-sm font-extrabold text-slate-800" id="insCalcVehicleName">—</p>
+          <p class="text-[11px] text-slate-500 mt-0.5" id="insCalcVehicleMeta">—</p>
+        </div>
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">客戶年齡</label>
+        <input id="insCalcAge" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="例如 30" />
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">保險類型</label>
+        <select id="insCalcType" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none">
+          <option value="3rd">三號保險 (Third Party)</option>
+          <option value="1st">一號保險 (First Party)</option>
+        </select>
+
+        <button onclick="calcInsurance()" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 mb-5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          計算保費/路稅
+        </button>
+
+        <p id="insCalcWarning" class="hidden text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-5"></p>
+
+        <div id="insCalcResultBox" class="hidden overflow-x-auto rounded-xl border border-slate-200 mb-6">
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">保費</td>
+                <td class="px-5 py-3 text-right font-bold text-sky-600" id="insCalcResultInsurance">—</td>
+              </tr>
+              <tr class="res-row">
+                <td class="px-5 py-3.5 text-slate-800 font-extrabold">路稅</td>
+                <td class="px-5 py-3.5 text-right font-extrabold text-amber-600" id="insCalcResultRoadTax">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <button onclick="closeInsuranceCalc()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold transition-all">← 返回新車頁面</button>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
     <!-- PANEL: LOAN DEAL RECORD (screenshot-friendly summary — only  -->
     <!-- reachable via the Loan Calculator's "產生成交紀錄" button)    -->
     <!-- ============================================================ -->
@@ -1120,7 +1199,28 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+        <p class="text-[11px] font-bold text-slate-500 mb-2">車輛金額明細</p>
+        <div class="overflow-x-auto rounded-xl border border-slate-200 mb-5">
+          <table class="w-full text-sm">
+            <tbody id="receiptVehicleBreakdownBody">
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">車輛售價</td>
+                <td class="px-5 py-3 text-right font-semibold text-slate-800" id="receiptSellingPrice">—</td>
+              </tr>
+              <tr id="receiptRowTradeIn" class="res-row border-b border-slate-200 hidden">
+                <td class="px-5 py-3 text-rose-600 font-medium">減：舊車回收折抵</td>
+                <td class="px-5 py-3 text-right font-bold text-rose-600" id="receiptTradeIn">—</td>
+              </tr>
+              <tr id="receiptRowDownPayment" class="res-row border-b border-slate-200 hidden">
+                <td class="px-5 py-3 text-rose-600 font-medium">減：頭期款</td>
+                <td class="px-5 py-3 text-right font-bold text-rose-600" id="receiptDownPayment">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-[11px] font-bold text-slate-500 mb-2">貸款明細（僅車輛金額，不含保費/路稅/其他費用）</p>
+        <div class="overflow-x-auto rounded-xl border border-slate-200 mb-5">
           <table class="w-full text-sm">
             <tbody>
               <tr class="res-row border-b border-slate-200">
@@ -1146,6 +1246,37 @@
               <tr class="res-row">
                 <td class="px-5 py-3.5 text-slate-800 font-extrabold">總還款額</td>
                 <td class="px-5 py-3.5 text-right font-extrabold text-slate-800" id="receiptRepay">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-[11px] font-bold text-slate-500 mb-2">保費/路稅/其他費用（另計，不含在貸款內）</p>
+        <div class="overflow-x-auto rounded-xl border border-slate-200 mb-5">
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">保費</td>
+                <td class="px-5 py-3 text-right font-semibold text-sky-600" id="receiptInsurance">—</td>
+              </tr>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">路稅</td>
+                <td class="px-5 py-3 text-right font-semibold text-amber-600" id="receiptRoadTax">—</td>
+              </tr>
+              <tr class="res-row">
+                <td class="px-5 py-3 text-slate-700 font-medium">其他費用（車牌/人工費/驗車費等）</td>
+                <td class="px-5 py-3 text-right font-semibold text-violet-600" id="receiptOtherExtras">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-300 mb-6">
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="res-row bg-slate-50">
+                <td class="px-5 py-4 text-slate-800 font-extrabold">客戶總支出（總還款額 + 保費/路稅/其他費用）</td>
+                <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="receiptGrandTotal">—</td>
               </tr>
             </tbody>
           </table>
@@ -1194,6 +1325,11 @@ let lastLoanCalc = null;     // Cached last successful loan computation, for the
 
 let installmentData = [];    // New Car installment/financing pricelist — its own catalog, wider than the cash price list
 let installmentBrandMap = {}; // { Brand: [model1, model2, ...] } from installmentData
+
+let insuranceRatesData = []; // { classification, ccMin, ccMax, ageMin, ageMax, ins1st, ins3rd } rows
+let roadTaxRatesData = [];   // { ccMin, ccMax, roadTax } rows
+let insuranceCalcContext = null; // { returnTab, brand, model, classification, cc } — set when jumping to the Insurance Calculator
+let lastInsuranceCalc = null;    // { insurance, roadTax, insType, age } — result of the last successful Insurance Calculator run, consumed by New/Used Sale results
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
 
@@ -1210,7 +1346,12 @@ let currentStaffMaxDiscount = 0;
 let lastNewCalc = null;         // Cached selected New Bike object
 let appliedTradeInVal = 0;      // Value successfully Applied from Used trade-in valuation
 let lastCalculatedTradeInVal = 0; // Value calculated in used trade-in valuation tab
-let lastNetPayVal = 0;          // Net customer balance (OTR - Trade-In)
+let lastNetPayVal = 0;          // Financeable vehicle amount only (sellingPrice - Trade-In - Down Payment) — never includes insurance/road tax/other fees
+let lastOtherFeesVal = 0;       // Insurance + road tax + plate + runner (Used Sale: + inspection) — always paid separately, never financed
+let lastSellingPriceVal = 0;    // Vehicle price only (New Car deal price, or Used Sale deal price) from the last render
+let lastDownPaymentVal = 0;
+let lastInsuranceVal = 0;
+let lastRoadTaxVal = 0;
 
 // Loan Parameters
 let loanTenure = 5;
@@ -1721,6 +1862,28 @@ async function fetchBikeData() {
           if (firstLoad) { firstLoad = false; resolve(); }
         });
       }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, INSURANCE_RATES_COLLECTION), (snapshot) => {
+          insuranceRatesData = snapshot.docs.map(d => d.data());
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 保費資料連線失敗：", err);
+          insuranceRatesData = [];
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, ROAD_TAX_RATES_COLLECTION), (snapshot) => {
+          roadTaxRatesData = snapshot.docs.map(d => d.data());
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore 路稅資料連線失敗：", err);
+          roadTaxRatesData = [];
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
     ]);
   } catch (err) {
     console.warn("Firebase 載入失敗，改用離線備援資料：", err);
@@ -1732,6 +1895,8 @@ async function fetchBikeData() {
     applyUsedInventoryUpdate();
     installmentData = [];
     applyInstallmentDataUpdate();
+    insuranceRatesData = [];
+    roadTaxRatesData = [];
   }
 }
 
@@ -1815,6 +1980,7 @@ function findEffectiveNewMoto(brand, model) {
       plateBooking: cashMatch ? (cashMatch.plateBooking || 0) : 0,
       runnerFee: cashMatch ? (cashMatch.runnerFee || 0) : 0,
       classification: rec.classification || (cashMatch ? (cashMatch.classification || '') : ''),
+      cc: rec.cc || (cashMatch ? (cashMatch.cc || 0) : 0),
     };
   }
   return findMoto(brand, model);
@@ -1903,11 +2069,20 @@ function renderUsedSaleResults() {
   const needsInspection = vehicleAge >= INSPECTION_AGE_THRESHOLD;
   const inspectionFee = needsInspection ? INSPECTION_FEE : 0;
 
-  const otr = price + insurance + roadTaxVal + inspectionFee;
+  const otherFeesVal = insurance + roadTaxVal + inspectionFee;
+  const otr = price + otherFeesVal;
 
+  // Down payment and trade-in reduce the vehicle price only — insurance,
+  // road tax, and the inspection fee are always paid separately and must
+  // never be rolled into the financed (loan) amount.
   const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
-  const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
+  const netPay = Math.max(0, OTRDiffCalc(price, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
+  lastOtherFeesVal = otherFeesVal;
+  lastSellingPriceVal = price;
+  lastDownPaymentVal = downPayment;
+  lastInsuranceVal = insurance;
+  lastRoadTaxVal = roadTaxVal;
   setLoanRateRestriction(null); // classification-based loan limits are a New Car rule only
   setLoanTenureRestriction(null);
 
@@ -1975,6 +2150,7 @@ function renderUsedSaleResults() {
   }
 
   document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
+  document.getElementById('usedSaleValGrandTotal').textContent = fmt(netPay + otherFeesVal);
 
   // Only offer to jump to the Loan Calculator on the Installment sub-tab —
   // Cash sales aren't financed, so there's nothing to send there.
@@ -2115,12 +2291,14 @@ function onBrandChange(section) {
 // TAB SWITCH NAVIGATION
 // ================================================================
 function switchTab(tab) {
-  // panelReceipt isn't part of the normal nav (it's only reached via the
-  // Loan Calculator's "產生成交紀錄" button) so it's not in the tabs list
-  // below — it has to be hidden explicitly here, or it would stay stacked
-  // on top of whatever panel is switched to next.
+  // panelReceipt and panelInsuranceCalc aren't part of the normal nav
+  // (each is only reached via its own jump button) so neither is in the
+  // tabs list below — they have to be hidden explicitly here, or one would
+  // stay stacked on top of whatever panel is switched to next.
   const receiptPanel = document.getElementById('panelReceipt');
   if (receiptPanel) receiptPanel.classList.remove('active');
+  const insCalcPanel = document.getElementById('panelInsuranceCalc');
+  if (insCalcPanel) insCalcPanel.classList.remove('active');
 
   const tabs = ['new', 'usedSale', 'used', 'usedLookup', 'loan'];
   tabs.forEach(t => {
@@ -2178,6 +2356,7 @@ function switchSubTab(subTab) {
     document.getElementById('newSellingPrice').value = '';
     document.getElementById('sellingPriceHint').textContent = '選擇車型後會顯示可議價範圍';
     document.getElementById('newLoanAction').classList.add('hidden');
+    document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
     refreshBrandDropdown('new');
     setLoanRateRestriction(null);
     setLoanTenureRestriction(null);
@@ -2326,28 +2505,51 @@ function renderNewResults() {
   if (!priceValid) {
     // Can't compute a result with an out-of-range price — clear the rest
     // of the table instead of showing numbers based on an invalid input.
-    ['valInsurance', 'valRoadTax', 'valPlate', 'valRunner', 'valOTR', 'valNetPay'].forEach(id => {
+    ['valInsurance', 'valRoadTax', 'valPlate', 'valRunner', 'valOTR', 'valNetPay', 'valGrandTotal'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
     document.getElementById('rowDownPayment').classList.add('hidden');
     document.getElementById('rowDeduction').classList.add('hidden');
     document.getElementById('rowTradeInEqLine').classList.add('hidden');
     document.getElementById('newLoanAction').classList.add('hidden');
+    document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
     lastNetPayVal = 0;
+    lastOtherFeesVal = 0;
+    lastSellingPriceVal = 0;
+    lastDownPaymentVal = 0;
+    lastInsuranceVal = 0;
+    lastRoadTaxVal = 0;
     return;
   }
 
   const sellingPrice = enteredPrice;
-  const insurance = chkInsurance ? (insType === '1st' ? (moto.ins1st || 0) : (moto.ins3rd || 0)) : 0;
-  const roadTaxVal = chkRoadTax ? (moto.roadTax || 0) : 0;
+
+  // Insurance/road tax now come from the Insurance Calculator (classification
+  // + CC + customer age lookup) rather than a flat per-model value. Fall back
+  // to the model's own flat ins1st/ins3rd/roadTax fields only when no
+  // calculation has been run yet for this exact vehicle, so the page isn't
+  // just blank before the new rate tables are fully populated.
+  const insCalcMatches = lastInsuranceCalc && insuranceCalcContext
+    && insuranceCalcContext.brand === moto.brand && insuranceCalcContext.model === moto.model;
+  const insurance = chkInsurance ? (insCalcMatches ? lastInsuranceCalc.insurance : (insType === '1st' ? (moto.ins1st || 0) : (moto.ins3rd || 0))) : 0;
+  const roadTaxVal = chkRoadTax ? (insCalcMatches ? lastInsuranceCalc.roadTax : (moto.roadTax || 0)) : 0;
   const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
   const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
-  const otr = sellingPrice + insurance + roadTaxVal + plateVal + runnerVal;
+  const otherFeesVal = insurance + roadTaxVal + plateVal + runnerVal;
+  const otr = sellingPrice + otherFeesVal;
 
-  // Down payment and trade-in both reduce the balance the customer still owes
+  // Down payment and trade-in both reduce the vehicle price the customer
+  // still owes — but never the insurance/road tax/other fees, which are
+  // always paid separately and must never be rolled into the financed
+  // (loan) amount.
   const downPayment = Math.max(0, numOr0(document.getElementById('newDownPayment').value));
-  const netPay = Math.max(0, OTRDiffCalc(otr, appliedTradeInVal + downPayment));
+  const netPay = Math.max(0, OTRDiffCalc(sellingPrice, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
+  lastOtherFeesVal = otherFeesVal;
+  lastSellingPriceVal = sellingPrice;
+  lastDownPaymentVal = downPayment;
+  lastInsuranceVal = insurance;
+  lastRoadTaxVal = roadTaxVal;
   const isMoped = moto.classification === 'MOPED';
   setLoanRateRestriction(isMoped ? [0.75, 0.833] : null);
   setLoanTenureRestriction(isMoped ? [2, 3, 4, 5] : null);
@@ -2436,8 +2638,14 @@ function renderNewResults() {
     if (valNetPay) valNetPay.className = 'px-5 py-4 text-right font-black text-2xl text-accent-blue';
   }
 
-  // Final Net Pay value
+  // Final Net Pay value (vehicle price only, excluding insurance/road tax/other fees)
   if (valNetPay) valNetPay.textContent = fmt(netPay);
+
+  // Grand total: what the customer actually pays overall — financed vehicle
+  // amount plus insurance/road tax/other fees paid separately.
+  const grandTotal = netPay + otherFeesVal;
+  const valGrandTotal = document.getElementById('valGrandTotal');
+  if (valGrandTotal) valGrandTotal.textContent = fmt(grandTotal);
 
   // Display Apply offset buttons if calculated trade-in exists
   const applyBtn = document.getElementById('btnApplyTradeInDiscount');
@@ -2448,6 +2656,10 @@ function renderNewResults() {
       applyBtn.classList.add('hidden');
     }
   }
+
+  // Jump-to-Insurance-Calculator is offered on both Cash and Installment.
+  const insCalcBtn = document.getElementById('btnGoInsuranceCalc');
+  if (insCalcBtn) insCalcBtn.classList.remove('hidden');
 
   // Only offer to jump to the Loan Calculator on the Installment sub-tab —
   // Cash sales aren't financed, so there's nothing to send there.
@@ -2477,6 +2689,94 @@ function renderNewResults() {
 
 function onNewInputChange() {
   if (lastNewCalc) renderNewResults();
+}
+
+// ================================================================
+// INSURANCE / ROAD TAX CALCULATOR — a separate lookup keyed by vehicle
+// classification + CC (both) and customer age (insurance only), reached
+// only via the "前往保費/路稅計算器" button on the New Car page. Results
+// are never rolled into the financed loan amount — New Car's own results
+// table reads them back in separately once the user returns.
+// ================================================================
+function findInsuranceRate(classification, cc, age) {
+  return insuranceRatesData.find(r =>
+    r.classification === classification &&
+    cc >= numOr0(r.ccMin) && cc <= numOr0(r.ccMax) &&
+    age >= numOr0(r.ageMin) && age <= numOr0(r.ageMax)
+  );
+}
+
+function findRoadTaxRate(cc) {
+  return roadTaxRatesData.find(r => cc >= numOr0(r.ccMin) && cc <= numOr0(r.ccMax));
+}
+
+function goToInsuranceCalc(source) {
+  if (source === 'new' && lastNewCalc) {
+    insuranceCalcContext = {
+      returnTab: 'new',
+      brand: lastNewCalc.brand,
+      model: lastNewCalc.model,
+      classification: lastNewCalc.classification || '',
+      cc: numOr0(lastNewCalc.cc),
+    };
+  }
+  if (!insuranceCalcContext) return;
+
+  document.getElementById('insCalcVehicleName').textContent = `${insuranceCalcContext.brand} ${insuranceCalcContext.model}`;
+  document.getElementById('insCalcVehicleMeta').textContent = `車型分類：${insuranceCalcContext.classification || '未設定'} ・ 排氣量：${insuranceCalcContext.cc || '未設定'} CC`;
+  document.getElementById('insCalcResultBox').classList.add('hidden');
+  document.getElementById('insCalcWarning').classList.add('hidden');
+  if (lastInsuranceCalc) {
+    document.getElementById('insCalcAge').value = lastInsuranceCalc.age;
+    document.getElementById('insCalcType').value = lastInsuranceCalc.insType;
+  }
+
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panelInsuranceCalc').classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+}
+
+function calcInsurance() {
+  if (!insuranceCalcContext) return;
+  const age = numOr0(document.getElementById('insCalcAge').value);
+  const insType = document.getElementById('insCalcType').value;
+  if (age <= 0) { alert('請輸入客戶年齡。'); return; }
+
+  const rate = findInsuranceRate(insuranceCalcContext.classification, insuranceCalcContext.cc, age);
+  const roadTaxRate = findRoadTaxRate(insuranceCalcContext.cc);
+  const insurance = rate ? (insType === '1st' ? numOr0(rate.ins1st) : numOr0(rate.ins3rd)) : 0;
+  const roadTax = roadTaxRate ? numOr0(roadTaxRate.roadTax) : 0;
+
+  lastInsuranceCalc = { insurance, roadTax, insType, age };
+
+  document.getElementById('insCalcResultInsurance').textContent = fmt(insurance);
+  document.getElementById('insCalcResultRoadTax').textContent = fmt(roadTax);
+  document.getElementById('insCalcResultBox').classList.remove('hidden');
+
+  const warningEl = document.getElementById('insCalcWarning');
+  if (!rate || !roadTaxRate) {
+    warningEl.textContent = '⚠️ 查無符合的' + (!rate ? '保費' : '路稅') + '資料（車型分類/排氣量/年齡），對應金額顯示為 RM 0，請確認後台「保費/路稅資料」是否已匯入。';
+    warningEl.classList.remove('hidden');
+  } else {
+    warningEl.classList.add('hidden');
+  }
+}
+
+function closeInsuranceCalc() {
+  // Returning implies the staff wants these figures included — auto-check
+  // the New Car page's insurance/road tax boxes and sync its insurance
+  // type selector so the numbers line up immediately.
+  if (lastInsuranceCalc) {
+    const chkIns = document.getElementById('chkInsurance');
+    const chkTax = document.getElementById('chkRoadTax');
+    const insSel = document.getElementById('newInsurance');
+    if (chkIns) chkIns.checked = true;
+    if (chkTax) chkTax.checked = true;
+    if (insSel) insSel.value = lastInsuranceCalc.insType;
+  }
+  const returnTab = (insuranceCalcContext && insuranceCalcContext.returnTab) || 'new';
+  switchTab(returnTab);
+  if (returnTab === 'new' && lastNewCalc) renderNewResults();
 }
 
 // Function to calculate diff subtraction safely
@@ -2706,10 +3006,21 @@ function applyNetOTRToLoan() {
 }
 
 function sendToLoanCalculator(source) {
+  // Snapshot the full price breakdown at the moment of hand-off — trade-in,
+  // down payment, insurance, road tax and other fees are all needed later
+  // on the deal record page to show exactly where the total came from.
+  const breakdown = {
+    sellingPrice: lastSellingPriceVal,
+    tradeIn: appliedTradeInVal,
+    downPayment: lastDownPaymentVal,
+    insurance: lastInsuranceVal,
+    roadTax: lastRoadTaxVal,
+    otherFees: lastOtherFeesVal,
+  };
   if (source === 'new' && lastNewCalc) {
-    loanSourceInfo = { source: 'new', brand: lastNewCalc.brand, model: lastNewCalc.model };
+    loanSourceInfo = { source: 'new', brand: lastNewCalc.brand, model: lastNewCalc.model, ...breakdown };
   } else if (source === 'usedSale' && lastUsedSaleCalc) {
-    loanSourceInfo = { source: 'usedSale', brand: lastUsedSaleCalc.brand, model: lastUsedSaleCalc.model, plateNo: lastUsedSaleCalc.plateNo };
+    loanSourceInfo = { source: 'usedSale', brand: lastUsedSaleCalc.brand, model: lastUsedSaleCalc.model, plateNo: lastUsedSaleCalc.plateNo, ...breakdown };
   }
   if (lastNetPayVal > 0) {
     document.getElementById('loanAmount').value = lastNetPayVal;
@@ -2794,6 +3105,37 @@ function renderLoanReceipt() {
   document.getElementById('receiptMonthly').textContent = fmt(c.monthlyInstalment);
   document.getElementById('receiptInterest').textContent = fmt(c.totalInterest);
   document.getElementById('receiptRepay').textContent = fmt(c.totalRepayment);
+
+  // Full price breakdown, snapshotted when "送去貸款計算器" was clicked —
+  // shows exactly where the financed amount and the separate fees came from.
+  const b = loanSourceInfo || {};
+  document.getElementById('receiptSellingPrice').textContent = fmt(numOr0(b.sellingPrice));
+
+  const rowTradeIn = document.getElementById('receiptRowTradeIn');
+  if (numOr0(b.tradeIn) > 0) {
+    rowTradeIn.classList.remove('hidden');
+    document.getElementById('receiptTradeIn').textContent = `- ${fmt(numOr0(b.tradeIn))}`;
+  } else {
+    rowTradeIn.classList.add('hidden');
+  }
+
+  const rowDownPayment = document.getElementById('receiptRowDownPayment');
+  if (numOr0(b.downPayment) > 0) {
+    rowDownPayment.classList.remove('hidden');
+    document.getElementById('receiptDownPayment').textContent = `- ${fmt(numOr0(b.downPayment))}`;
+  } else {
+    rowDownPayment.classList.add('hidden');
+  }
+
+  const insurance = numOr0(b.insurance);
+  const roadTax = numOr0(b.roadTax);
+  const otherFees = numOr0(b.otherFees);
+  const otherExtras = Math.max(0, otherFees - insurance - roadTax);
+  document.getElementById('receiptInsurance').textContent = fmt(insurance);
+  document.getElementById('receiptRoadTax').textContent = fmt(roadTax);
+  document.getElementById('receiptOtherExtras').textContent = fmt(otherExtras);
+
+  document.getElementById('receiptGrandTotal').textContent = fmt(c.totalRepayment + otherFees);
 }
 
 // ================================================================

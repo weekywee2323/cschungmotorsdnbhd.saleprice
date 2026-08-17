@@ -103,6 +103,7 @@
         <div class="bg-slate-200/60 rounded-2xl p-1 flex gap-1 border border-slate-300/30">
           <button id="adminTabNew" class="admin-tab-btn active px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('new')">新車價格管理</button>
           <button id="adminTabInstallment" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('installment')">新車分期資料</button>
+          <button id="adminTabRates" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('rates')">保費/路稅資料</button>
           <button id="adminTabUsed" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('used')">二手車收購行情</button>
           <button id="adminTabInventory" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('inventory')">二手車庫存管理</button>
           <button id="adminTabStaff" class="admin-tab-btn px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600" onclick="switchAdminTab('staff')">員工帳號管理</button>
@@ -138,13 +139,14 @@
           <span class="w-2.5 h-2.5 rounded-full bg-accent-red"></span>
           新增車款
         </h2>
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3">
           <div class="relative">
             <input id="newBrandInput" placeholder="品牌" autocomplete="off" class="form-ctrl w-full rounded-xl px-3 py-2 text-xs" oninput="onNewBrandInput()" onfocus="onNewBrandInput()" onblur="hideNewBrandSuggestions()" />
             <div id="newBrandSuggestions" class="hidden absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto"></div>
           </div>
           <input id="newModelInput" placeholder="型號" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newMsrpInput" type="number" placeholder="賣價" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newCcInput" type="number" placeholder="排氣量 (CC)" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newIns1stInput" type="number" placeholder="一號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newIns3rdInput" type="number" placeholder="三號保險" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
           <input id="newRoadTaxInput" type="number" placeholder="路稅" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
@@ -185,6 +187,7 @@
                 <th class="text-left px-3 py-3 font-bold">品牌</th>
                 <th class="text-left px-3 py-3 font-bold">型號</th>
                 <th class="text-right px-3 py-3 font-bold">賣價</th>
+                <th class="text-right px-3 py-3 font-bold">排氣量 (CC)</th>
                 <th class="text-right px-3 py-3 font-bold">一號保險</th>
                 <th class="text-right px-3 py-3 font-bold">三號保險</th>
                 <th class="text-right px-3 py-3 font-bold">路稅</th>
@@ -438,11 +441,122 @@
                 <th class="text-left px-3 py-3 font-bold">車型分類</th>
                 <th class="text-left px-3 py-3 font-bold">品牌</th>
                 <th class="text-left px-3 py-3 font-bold">型號</th>
+                <th class="text-right px-3 py-3 font-bold">排氣量 (CC)</th>
                 <th class="text-right px-3 py-3 font-bold">Max Finance Price</th>
                 <th class="text-left px-3 py-3 font-bold">操作</th>
               </tr>
             </thead>
             <tbody id="installmentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- INSURANCE & ROAD TAX RATE TABLES — looked up by the public    -->
+      <!-- calculator's Insurance Calculator page (classification + CC + -->
+      <!-- customer age for insurance; CC only for road tax)             -->
+      <!-- ============================================================ -->
+      <section id="adminPanelRates" class="admin-tab-panel">
+
+      <!-- Insurance Rates -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          保費資料（依車型分類 + 排氣量 + 客戶年齡）
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：車型分類, CC下限, CC上限, 年齡下限, 年齡上限, 一號保費, 三號保費（含標題列，欄位名稱需含這些關鍵字，順序不拘）。匯入是新增資料，不會自動比對覆蓋（區間資料沒有唯一 key）——如果要整批換掉，請先勾選舊資料「刪除已選取」清空，再重新匯入。</p>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <input id="insuranceRatesCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importInsuranceRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportInsuranceRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+        <div id="insuranceRatesImportHistoryBox" class="hidden mb-4 pb-4 border-b border-slate-100">
+          <p class="text-[11px] font-bold text-slate-500 mb-2">最近匯入紀錄</p>
+          <ul id="insuranceRatesImportHistoryList" class="text-[11px] text-slate-500 space-y-1"></ul>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200/60">
+          <select id="newInsRateClassification" class="form-ctrl rounded-xl px-3 py-2 text-xs">
+            <option value="MOPED">MOPED</option>
+            <option value="BIG BIKE">BIG BIKE</option>
+            <option value="SUPERBIKE">SUPERBIKE</option>
+            <option value="EV">EV</option>
+            <option value="ATV">ATV</option>
+          </select>
+          <input id="newInsRateCcMin" type="number" placeholder="CC下限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInsRateCcMax" type="number" placeholder="CC上限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInsRateAgeMin" type="number" placeholder="年齡下限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInsRateAgeMax" type="number" placeholder="年齡上限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInsRateIns1st" type="number" placeholder="一號保費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newInsRateIns3rd" type="number" placeholder="三號保費" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+        </div>
+        <button onclick="addInsuranceRate()" class="mb-5 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增一筆保費資料</button>
+
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <h3 class="text-xs font-bold text-slate-600">共 <span id="insuranceRatesCount">0</span> 筆</h3>
+          <button id="insuranceRatesDeleteSelectedBtn" onclick="deleteSelectedInsuranceRates()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="insuranceRatesSelectAllChk" onchange="toggleInsuranceRatesSelectAll(this.checked)"></th>
+                <th class="text-left px-2 py-3 font-bold">車型分類</th>
+                <th class="text-right px-2 py-3 font-bold">CC下限</th>
+                <th class="text-right px-2 py-3 font-bold">CC上限</th>
+                <th class="text-right px-2 py-3 font-bold">年齡下限</th>
+                <th class="text-right px-2 py-3 font-bold">年齡上限</th>
+                <th class="text-right px-2 py-3 font-bold">一號保費</th>
+                <th class="text-right px-2 py-3 font-bold">三號保費</th>
+                <th class="text-left px-2 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="insuranceRatesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Road Tax Rates -->
+      <div class="card-light rounded-2xl p-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          路稅資料（依排氣量）
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：CC下限, CC上限, 路稅（含標題列，欄位名稱需含這些關鍵字，順序不拘）。匯入是新增資料，不會自動比對覆蓋。</p>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <input id="roadTaxRatesCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importRoadTaxRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportRoadTaxRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+        <div id="roadTaxRatesImportHistoryBox" class="hidden mb-4 pb-4 border-b border-slate-100">
+          <p class="text-[11px] font-bold text-slate-500 mb-2">最近匯入紀錄</p>
+          <ul id="roadTaxRatesImportHistoryList" class="text-[11px] text-slate-500 space-y-1"></ul>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200/60">
+          <input id="newRoadTaxRateCcMin" type="number" placeholder="CC下限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newRoadTaxRateCcMax" type="number" placeholder="CC上限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newRoadTaxRateAmount" type="number" placeholder="路稅金額" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+        </div>
+        <button onclick="addRoadTaxRate()" class="mb-5 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增一筆路稅資料</button>
+
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <h3 class="text-xs font-bold text-slate-600">共 <span id="roadTaxRatesCount">0</span> 筆</h3>
+          <button id="roadTaxRatesDeleteSelectedBtn" onclick="deleteSelectedRoadTaxRates()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="roadTaxRatesSelectAllChk" onchange="toggleRoadTaxRatesSelectAll(this.checked)"></th>
+                <th class="text-right px-2 py-3 font-bold">CC下限</th>
+                <th class="text-right px-2 py-3 font-bold">CC上限</th>
+                <th class="text-right px-2 py-3 font-bold">路稅</th>
+                <th class="text-left px-2 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="roadTaxRatesTableBody"></tbody>
           </table>
         </div>
       </div>
@@ -524,12 +638,16 @@ let usedMotoCache = [];
 let staffCache = [];
 let inventoryCache = [];
 let installmentCache = [];
+let insuranceRatesCache = [];
+let roadTaxRatesCache = [];
 let unsubscribeMoto = null;
 let unsubscribeUsedMoto = null;
 let unsubscribeSettings = null;
 let unsubscribeStaff = null;
 let unsubscribeInventory = null;
 let unsubscribeInstallment = null;
+let unsubscribeInsuranceRates = null;
+let unsubscribeRoadTaxRates = null;
 let unsubscribeImportHistory = null;
 let importHistoryCache = [];
 
@@ -538,6 +656,9 @@ let selectedInventoryIds = new Set();
 
 let installmentSearchTerm = '';
 let selectedInstallmentIds = new Set();
+
+let selectedInsuranceRateIds = new Set();
+let selectedRoadTaxRateIds = new Set();
 
 let motoSearchTerm = '';
 let selectedMotoIds = new Set();
@@ -586,13 +707,15 @@ async function initFirebase() {
     listenStaffData();
     listenInventoryData();
     listenInstallmentData();
+    listenInsuranceRates();
+    listenRoadTaxRates();
     listenImportHistory();
   });
 }
 document.addEventListener('DOMContentLoaded', initFirebase);
 
 function switchAdminTab(tab) {
-  ['new', 'used', 'inventory', 'installment', 'staff'].forEach(t => {
+  ['new', 'used', 'inventory', 'installment', 'rates', 'staff'].forEach(t => {
     const btn = document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('adminPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     btn.classList.toggle('active', t === tab);
@@ -648,6 +771,8 @@ async function logout() {
   if (unsubscribeStaff) { unsubscribeStaff(); unsubscribeStaff = null; }
   if (unsubscribeInventory) { unsubscribeInventory(); unsubscribeInventory = null; }
   if (unsubscribeInstallment) { unsubscribeInstallment(); unsubscribeInstallment = null; }
+  if (unsubscribeInsuranceRates) { unsubscribeInsuranceRates(); unsubscribeInsuranceRates = null; }
+  if (unsubscribeRoadTaxRates) { unsubscribeRoadTaxRates(); unsubscribeRoadTaxRates = null; }
   if (unsubscribeImportHistory) { unsubscribeImportHistory(); unsubscribeImportHistory = null; }
   await window.__authMod.signOut(auth);
 }
@@ -724,7 +849,7 @@ function renderTable() {
   if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedMotoIds.has(m.id));
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-400 text-xs">${motoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入車款價格，或手動新增一筆。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400 text-xs">${motoCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入車款價格，或手動新增一筆。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
     return;
   }
 
@@ -735,6 +860,7 @@ function renderTable() {
       <td class="px-2 py-2"><input class="f-brand form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
       <td class="px-2 py-2"><input class="f-model form-ctrl w-32 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
       <td class="px-2 py-2"><input type="number" class="f-msrp form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.msrp)}"></td>
+      <td class="px-2 py-2"><input type="number" class="f-cc form-ctrl w-16 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.cc)}"></td>
       <td class="px-2 py-2"><input type="number" class="f-ins1st form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.ins1st)}"></td>
       <td class="px-2 py-2"><input type="number" class="f-ins3rd form-ctrl w-20 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.ins3rd)}"></td>
       <td class="px-2 py-2"><input type="number" class="f-roadTax form-ctrl w-16 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.roadTax)}"></td>
@@ -758,6 +884,7 @@ function readRowData(tr) {
     brand: tr.querySelector('.f-brand').value.trim(),
     model: tr.querySelector('.f-model').value.trim(),
     msrp: numOr0(tr.querySelector('.f-msrp').value),
+    cc: numOr0(tr.querySelector('.f-cc').value),
     ins1st: numOr0(tr.querySelector('.f-ins1st').value),
     ins3rd: numOr0(tr.querySelector('.f-ins3rd').value),
     roadTax: numOr0(tr.querySelector('.f-roadTax').value),
@@ -812,6 +939,7 @@ async function addNew() {
   const data = {
     brand, model,
     msrp: numOr0(document.getElementById('newMsrpInput').value),
+    cc: numOr0(document.getElementById('newCcInput').value),
     ins1st: numOr0(document.getElementById('newIns1stInput').value),
     ins3rd: numOr0(document.getElementById('newIns3rdInput').value),
     roadTax: numOr0(document.getElementById('newRoadTaxInput').value),
@@ -823,7 +951,7 @@ async function addNew() {
   try {
     await setDoc(doc(db, MOTO_COLLECTION, docIdFor(brand, model)), data);
     showToast(`已新增：${brand} ${model}`);
-    ['newBrandInput','newModelInput','newMsrpInput','newIns1stInput','newIns3rdInput','newRoadTaxInput','newPlateInput','newRunnerInput']
+    ['newBrandInput','newModelInput','newMsrpInput','newCcInput','newIns1stInput','newIns3rdInput','newRoadTaxInput','newPlateInput','newRunnerInput']
       .forEach(fid => document.getElementById(fid).value = '');
     hideNewBrandSuggestions();
   } catch (err) {
@@ -916,6 +1044,7 @@ function parseGenericMotoCSV(text) {
     brand: findCol(/^(brand|品牌)$/i),
     model: findCol(/^(model|型號|車型名稱)$/i),
     msrp: findCol(/賣價|售價|sales?\s*price|^msrp$/i),
+    cc: findCol(/排氣量|^cc$|engine.*cc/i),
     ins1st: findCol(/一號保險|1st.*insurance/i),
     ins3rd: findCol(/三號保險|3rd.*insurance/i),
     roadTax: findCol(/路稅|road\s*tax/i),
@@ -932,6 +1061,7 @@ function parseGenericMotoCSV(text) {
     if (!brand || !model) continue;
     const row = { brand, model };
     if (colIdx.msrp >= 0) row.msrp = parseRMValue(f[colIdx.msrp] || '');
+    if (colIdx.cc >= 0) row.cc = parseRMValue(f[colIdx.cc] || '');
     if (colIdx.ins1st >= 0) row.ins1st = parseRMValue(f[colIdx.ins1st] || '');
     if (colIdx.ins3rd >= 0) row.ins3rd = parseRMValue(f[colIdx.ins3rd] || '');
     if (colIdx.roadTax >= 0) row.roadTax = parseRMValue(f[colIdx.roadTax] || '');
@@ -966,7 +1096,7 @@ async function importCSV() {
   if (!confirm(`即將匯入 ${rows.length} 筆車款資料（同品牌+型號的資料會用檔案裡有出現的欄位覆蓋，沒出現的欄位保留原本設定；沒有的型號會直接新增）。確定繼續嗎？`)) return;
 
   const existingById = new Map(motoCache.map(m => [m.id, m]));
-  const NUMERIC_FIELDS = ['msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
+  const NUMERIC_FIELDS = ['msrp', 'cc', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee'];
   const { doc, writeBatch } = window.__fsMod;
   const CHUNK = 400;
   try {
@@ -993,7 +1123,7 @@ async function importCSV() {
 }
 
 function exportCSV() {
-  const header = ['brand', 'model', 'msrp', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee', 'classification'];
+  const header = ['brand', 'model', 'msrp', 'cc', 'ins1st', 'ins3rd', 'roadTax', 'plateBooking', 'runnerFee', 'classification'];
   const lines = [header.join(',')];
   motoCache.forEach(m => {
     lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
@@ -1712,7 +1842,7 @@ function renderInstallmentTable() {
   if (allChk) allChk.checked = filtered.length > 0 && filtered.every(m => selectedInstallmentIds.has(m.id));
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 text-xs">${installmentCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入分期資料。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">${installmentCache.length === 0 ? '目前沒有資料，請先用上方「匯入 CSV」匯入分期資料。' : '沒有符合搜尋條件的車款。'}</td></tr>`;
     return;
   }
 
@@ -1727,6 +1857,7 @@ function renderInstallmentTable() {
       </td>
       <td class="px-2 py-2"><input class="in-brand form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.brand || '')}"></td>
       <td class="px-2 py-2"><input class="in-model form-ctrl w-36 rounded-lg px-2 py-1.5 text-xs" value="${escapeAttr(m.model || '')}"></td>
+      <td class="px-2 py-2"><input type="number" class="in-cc form-ctrl w-16 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.cc)}"></td>
       <td class="px-2 py-2"><input type="number" class="in-maxFinancePrice form-ctrl w-24 rounded-lg px-2 py-1.5 text-xs text-right" value="${numOr0(m.maxFinancePrice)}"></td>
       <td class="px-2 py-2 whitespace-nowrap">
         <button onclick="saveInstallmentRow('${m.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
@@ -1741,6 +1872,7 @@ function readInstallmentRowData(tr) {
     classification: tr.querySelector('.in-classification').value,
     brand: tr.querySelector('.in-brand').value.trim(),
     model: tr.querySelector('.in-model').value.trim(),
+    cc: numOr0(tr.querySelector('.in-cc').value),
     maxFinancePrice: numOr0(tr.querySelector('.in-maxFinancePrice').value),
   };
 }
@@ -1780,24 +1912,31 @@ async function deleteInstallmentRow(id) {
 // New Car Cash importer which only ever touches models we actually sell.
 function parseInstallmentDataCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  let headerIdx = -1;
+  let headerIdx = -1, headerFields = null;
   for (let i = 0; i < lines.length; i++) {
-    if (/車型分類|classification/i.test(lines[i]) && /品牌|brand/i.test(lines[i])) { headerIdx = i; break; }
+    if (/車型分類|classification/i.test(lines[i]) && /品牌|brand/i.test(lines[i])) { headerIdx = i; headerFields = parseCSVLine(lines[i]); break; }
   }
   if (headerIdx === -1) {
     throw new Error('找不到標題列（需含「車型分類」與「品牌」欄位），請確認是不是正確的分期資料 CSV。');
   }
 
+  // classification/brand/model/maxFinancePrice stay position-based (col
+  // 0-3) to match the source sheet's fixed layout; cc is detected by name
+  // since it's a newer, optional column that may or may not be present.
+  const ccIdx = headerFields.findIndex(c => /排氣量|^cc$|engine.*cc/i.test(c.trim()));
+
   const rows = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
     const f = parseCSVLine(lines[i]);
     if (f.length < 3 || !f[0].trim() || !f[1].trim() || !f[2].trim()) continue;
-    rows.push({
+    const row = {
       classification: f[0].trim().toUpperCase(),
       brand: f[1].trim(),
       model: f[2].trim(),
       maxFinancePrice: parseRMValue(f[3] || ''),
-    });
+    };
+    if (ccIdx >= 0) row.cc = parseRMValue(f[ccIdx] || '');
+    rows.push(row);
   }
   return rows;
 }
@@ -1822,15 +1961,20 @@ async function importInstallmentDataCSV() {
     showToast('沒有解析到任何有效的資料列', true);
     return;
   }
-  if (!confirm(`即將匯入 ${rows.length} 筆分期資料（同品牌+型號會覆蓋原本資料）。確定繼續嗎？`)) return;
+  if (!confirm(`即將匯入 ${rows.length} 筆分期資料（同品牌+型號會覆蓋原本資料；CSV 沒有排氣量欄位時會保留原本設定的 CC）。確定繼續嗎？`)) return;
 
+  const existingById = new Map(installmentCache.map(m => [m.id, m]));
   const { doc, writeBatch } = window.__fsMod;
   const CHUNK = 400;
   try {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const batch = writeBatch(db);
       rows.slice(i, i + CHUNK).forEach(r => {
-        batch.set(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, docIdFor(r.brand, r.model)), r);
+        const id = docIdFor(r.brand, r.model);
+        const existing = existingById.get(id);
+        const data = { ...r };
+        if (data.cc === undefined) data.cc = existing ? numOr0(existing.cc) : 0;
+        batch.set(doc(db, NEW_CAR_INSTALLMENT_COLLECTION, id), data);
       });
       await batch.commit();
     }
@@ -1843,7 +1987,7 @@ async function importInstallmentDataCSV() {
 }
 
 function exportInstallmentDataCSV() {
-  const header = ['classification', 'brand', 'model', 'maxFinancePrice'];
+  const header = ['classification', 'brand', 'model', 'cc', 'maxFinancePrice'];
   const lines = [header.join(',')];
   installmentCache.forEach(m => {
     lines.push(header.map(k => csvEscape(m[k] ?? '')).join(','));
@@ -1853,6 +1997,459 @@ function exportInstallmentDataCSV() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `new-car-installment-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// INSURANCE RATES — looked up by classification + CC + customer age on
+// the public calculator's Insurance Calculator page. No natural unique
+// key exists for a rate band, so CSV import always adds rows rather than
+// upserting; clearing old data before a wholesale replacement is manual
+// (select all → delete → re-import).
+// ================================================================
+function listenInsuranceRates() {
+  if (unsubscribeInsuranceRates) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeInsuranceRates = onSnapshot(collection(db, INSURANCE_RATES_COLLECTION), (snapshot) => {
+    insuranceRatesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    insuranceRatesCache.sort((a, b) => `${a.classification}${numOr0(a.ccMin)}${numOr0(a.ageMin)}`.localeCompare(`${b.classification}${numOr0(b.ccMin)}${numOr0(b.ageMin)}`));
+    renderInsuranceRatesTable();
+  }, (err) => {
+    showToast('讀取保費資料失敗：' + err.message, true);
+  });
+}
+
+function toggleInsuranceRateSelect(id, checked) {
+  if (checked) selectedInsuranceRateIds.add(id); else selectedInsuranceRateIds.delete(id);
+  updateInsuranceRatesBulkBar();
+}
+
+function toggleInsuranceRatesSelectAll(checked) {
+  insuranceRatesCache.forEach(r => checked ? selectedInsuranceRateIds.add(r.id) : selectedInsuranceRateIds.delete(r.id));
+  renderInsuranceRatesTable();
+}
+
+function updateInsuranceRatesBulkBar() {
+  const btn = document.getElementById('insuranceRatesDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedInsuranceRateIds.size})`;
+  btn.disabled = selectedInsuranceRateIds.size === 0;
+}
+
+async function deleteSelectedInsuranceRates() {
+  const ids = [...selectedInsuranceRateIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆保費資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, INSURANCE_RATES_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedInsuranceRateIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderInsuranceRatesTable() {
+  document.getElementById('insuranceRatesCount').textContent = insuranceRatesCache.length;
+  const tbody = document.getElementById('insuranceRatesTableBody');
+  updateInsuranceRatesBulkBar();
+
+  const allChk = document.getElementById('insuranceRatesSelectAllChk');
+  if (allChk) allChk.checked = insuranceRatesCache.length > 0 && insuranceRatesCache.every(r => selectedInsuranceRateIds.has(r.id));
+
+  if (insuranceRatesCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400 text-xs">目前沒有資料，請先用上方「匯入 CSV」或手動新增一筆。</td></tr>`;
+    return;
+  }
+
+  const CLASSIFICATIONS = ['MOPED', 'BIG BIKE', 'SUPERBIKE', 'EV', 'ATV'];
+  tbody.innerHTML = insuranceRatesCache.map(r => `
+    <tr data-id="${r.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedInsuranceRateIds.has(r.id) ? 'checked' : ''} onchange="toggleInsuranceRateSelect('${r.id}', this.checked)"></td>
+      <td class="px-2 py-2">
+        <select class="ir-classification form-ctrl w-28 rounded-lg px-2 py-1.5 text-xs">
+          ${CLASSIFICATIONS.map(c => `<option value="${c}" ${(r.classification === c) ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </td>
+      <td class="px-2 py-2"><input type="number" class="ir-ccMin form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMin)}"></td>
+      <td class="px-2 py-2"><input type="number" class="ir-ccMax form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="ir-ageMin form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ageMin)}"></td>
+      <td class="px-2 py-2"><input type="number" class="ir-ageMax form-ctrl w-16 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ageMax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="ir-ins1st form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ins1st)}"></td>
+      <td class="px-2 py-2"><input type="number" class="ir-ins3rd form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ins3rd)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveInsuranceRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteInsuranceRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function readInsuranceRateRowData(tr) {
+  return {
+    classification: tr.querySelector('.ir-classification').value,
+    ccMin: numOr0(tr.querySelector('.ir-ccMin').value),
+    ccMax: numOr0(tr.querySelector('.ir-ccMax').value),
+    ageMin: numOr0(tr.querySelector('.ir-ageMin').value),
+    ageMax: numOr0(tr.querySelector('.ir-ageMax').value),
+    ins1st: numOr0(tr.querySelector('.ir-ins1st').value),
+    ins3rd: numOr0(tr.querySelector('.ir-ins3rd').value),
+  };
+}
+
+async function saveInsuranceRateRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = readInsuranceRateRowData(tr);
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, INSURANCE_RATES_COLLECTION, id), data);
+    showToast('已儲存。');
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteInsuranceRateRow(id) {
+  if (!confirm('確定要刪除這筆保費資料嗎？此動作無法復原。')) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, INSURANCE_RATES_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function addInsuranceRate() {
+  const data = {
+    classification: document.getElementById('newInsRateClassification').value,
+    ccMin: numOr0(document.getElementById('newInsRateCcMin').value),
+    ccMax: numOr0(document.getElementById('newInsRateCcMax').value),
+    ageMin: numOr0(document.getElementById('newInsRateAgeMin').value),
+    ageMax: numOr0(document.getElementById('newInsRateAgeMax').value),
+    ins1st: numOr0(document.getElementById('newInsRateIns1st').value),
+    ins3rd: numOr0(document.getElementById('newInsRateIns3rd').value),
+  };
+  const { doc, collection, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(collection(db, INSURANCE_RATES_COLLECTION)), data);
+    showToast('已新增一筆保費資料。');
+    ['newInsRateCcMin', 'newInsRateCcMax', 'newInsRateAgeMin', 'newInsRateAgeMax', 'newInsRateIns1st', 'newInsRateIns3rd']
+      .forEach(fid => document.getElementById(fid).value = '');
+  } catch (err) {
+    showToast('新增失敗：' + err.message, true);
+  }
+}
+
+// Header-name-driven, same convention as the other importers — column
+// order doesn't matter, only the presence of these keywords does.
+function parseInsuranceRatesCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1, headerFields = null;
+  for (let i = 0; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.some(c => /車型分類|classification/i.test(c.trim())) && f.some(c => /cc下限|ccmin/i.test(c.trim()))) {
+      headerIdx = i; headerFields = f; break;
+    }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含「車型分類」與「CC下限」欄位），請確認 CSV 格式。');
+  }
+
+  const findCol = (re) => headerFields.findIndex(c => re.test(c.trim()));
+  const colIdx = {
+    classification: findCol(/車型分類|classification/i),
+    ccMin: findCol(/cc下限|ccmin/i),
+    ccMax: findCol(/cc上限|ccmax/i),
+    ageMin: findCol(/年齡下限|agemin/i),
+    ageMax: findCol(/年齡上限|agemax/i),
+    ins1st: findCol(/一號保費|一號保險|1st/i),
+    ins3rd: findCol(/三號保費|三號保險|3rd/i),
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const classification = (f[colIdx.classification] || '').trim().toUpperCase();
+    if (!classification) continue;
+    rows.push({
+      classification,
+      ccMin: colIdx.ccMin >= 0 ? parseRMValue(f[colIdx.ccMin] || '') : 0,
+      ccMax: colIdx.ccMax >= 0 ? parseRMValue(f[colIdx.ccMax] || '') : 0,
+      ageMin: colIdx.ageMin >= 0 ? parseRMValue(f[colIdx.ageMin] || '') : 0,
+      ageMax: colIdx.ageMax >= 0 ? parseRMValue(f[colIdx.ageMax] || '') : 0,
+      ins1st: colIdx.ins1st >= 0 ? parseRMValue(f[colIdx.ins1st] || '') : 0,
+      ins3rd: colIdx.ins3rd >= 0 ? parseRMValue(f[colIdx.ins3rd] || '') : 0,
+    });
+  }
+  return rows;
+}
+
+async function importInsuranceRatesCSV() {
+  const fileInput = document.getElementById('insuranceRatesCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseInsuranceRatesCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將新增 ${rows.length} 筆保費資料（不會比對覆蓋既有資料）。確定繼續嗎？`)) return;
+
+  const { doc, collection, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => batch.set(doc(collection(db, INSURANCE_RATES_COLLECTION)), r));
+      await batch.commit();
+    }
+    showToast(`匯入完成：已新增 ${rows.length} 筆保費資料。`);
+    fileInput.value = '';
+    logImportHistory(INSURANCE_RATES_COLLECTION, '保費資料', rows.length);
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportInsuranceRatesCSV() {
+  const header = ['classification', 'ccMin', 'ccMax', 'ageMin', 'ageMax', 'ins1st', 'ins3rd'];
+  const lines = [header.join(',')];
+  insuranceRatesCache.forEach(r => {
+    lines.push(header.map(k => csvEscape(r[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `insurance-rates-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// ROAD TAX RATES — looked up by CC alone. Same no-natural-key / add-only
+// import behaviour as insurance rates above.
+// ================================================================
+function listenRoadTaxRates() {
+  if (unsubscribeRoadTaxRates) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeRoadTaxRates = onSnapshot(collection(db, ROAD_TAX_RATES_COLLECTION), (snapshot) => {
+    roadTaxRatesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    roadTaxRatesCache.sort((a, b) => numOr0(a.ccMin) - numOr0(b.ccMin));
+    renderRoadTaxRatesTable();
+  }, (err) => {
+    showToast('讀取路稅資料失敗：' + err.message, true);
+  });
+}
+
+function toggleRoadTaxRateSelect(id, checked) {
+  if (checked) selectedRoadTaxRateIds.add(id); else selectedRoadTaxRateIds.delete(id);
+  updateRoadTaxRatesBulkBar();
+}
+
+function toggleRoadTaxRatesSelectAll(checked) {
+  roadTaxRatesCache.forEach(r => checked ? selectedRoadTaxRateIds.add(r.id) : selectedRoadTaxRateIds.delete(r.id));
+  renderRoadTaxRatesTable();
+}
+
+function updateRoadTaxRatesBulkBar() {
+  const btn = document.getElementById('roadTaxRatesDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedRoadTaxRateIds.size})`;
+  btn.disabled = selectedRoadTaxRateIds.size === 0;
+}
+
+async function deleteSelectedRoadTaxRates() {
+  const ids = [...selectedRoadTaxRateIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆路稅資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, ROAD_TAX_RATES_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedRoadTaxRateIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderRoadTaxRatesTable() {
+  document.getElementById('roadTaxRatesCount').textContent = roadTaxRatesCache.length;
+  const tbody = document.getElementById('roadTaxRatesTableBody');
+  updateRoadTaxRatesBulkBar();
+
+  const allChk = document.getElementById('roadTaxRatesSelectAllChk');
+  if (allChk) allChk.checked = roadTaxRatesCache.length > 0 && roadTaxRatesCache.every(r => selectedRoadTaxRateIds.has(r.id));
+
+  if (roadTaxRatesCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">目前沒有資料，請先用上方「匯入 CSV」或手動新增一筆。</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = roadTaxRatesCache.map(r => `
+    <tr data-id="${r.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedRoadTaxRateIds.has(r.id) ? 'checked' : ''} onchange="toggleRoadTaxRateSelect('${r.id}', this.checked)"></td>
+      <td class="px-2 py-2"><input type="number" class="rt-ccMin form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMin)}"></td>
+      <td class="px-2 py-2"><input type="number" class="rt-ccMax form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="rt-roadTax form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.roadTax)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveRoadTaxRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteRoadTaxRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveRoadTaxRateRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = {
+    ccMin: numOr0(tr.querySelector('.rt-ccMin').value),
+    ccMax: numOr0(tr.querySelector('.rt-ccMax').value),
+    roadTax: numOr0(tr.querySelector('.rt-roadTax').value),
+  };
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, ROAD_TAX_RATES_COLLECTION, id), data);
+    showToast('已儲存。');
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteRoadTaxRateRow(id) {
+  if (!confirm('確定要刪除這筆路稅資料嗎？此動作無法復原。')) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, ROAD_TAX_RATES_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function addRoadTaxRate() {
+  const data = {
+    ccMin: numOr0(document.getElementById('newRoadTaxRateCcMin').value),
+    ccMax: numOr0(document.getElementById('newRoadTaxRateCcMax').value),
+    roadTax: numOr0(document.getElementById('newRoadTaxRateAmount').value),
+  };
+  const { doc, collection, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(collection(db, ROAD_TAX_RATES_COLLECTION)), data);
+    showToast('已新增一筆路稅資料。');
+    ['newRoadTaxRateCcMin', 'newRoadTaxRateCcMax', 'newRoadTaxRateAmount'].forEach(fid => document.getElementById(fid).value = '');
+  } catch (err) {
+    showToast('新增失敗：' + err.message, true);
+  }
+}
+
+function parseRoadTaxRatesCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1, headerFields = null;
+  for (let i = 0; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.some(c => /cc下限|ccmin/i.test(c.trim())) && f.some(c => /路稅|roadtax/i.test(c.trim()))) {
+      headerIdx = i; headerFields = f; break;
+    }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含「CC下限」與「路稅」欄位），請確認 CSV 格式。');
+  }
+
+  const findCol = (re) => headerFields.findIndex(c => re.test(c.trim()));
+  const colIdx = {
+    ccMin: findCol(/cc下限|ccmin/i),
+    ccMax: findCol(/cc上限|ccmax/i),
+    roadTax: findCol(/路稅|roadtax/i),
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const ccMinRaw = (f[colIdx.ccMin] || '').trim();
+    if (!ccMinRaw) continue;
+    rows.push({
+      ccMin: parseRMValue(ccMinRaw),
+      ccMax: colIdx.ccMax >= 0 ? parseRMValue(f[colIdx.ccMax] || '') : 0,
+      roadTax: colIdx.roadTax >= 0 ? parseRMValue(f[colIdx.roadTax] || '') : 0,
+    });
+  }
+  return rows;
+}
+
+async function importRoadTaxRatesCSV() {
+  const fileInput = document.getElementById('roadTaxRatesCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseRoadTaxRatesCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將新增 ${rows.length} 筆路稅資料（不會比對覆蓋既有資料）。確定繼續嗎？`)) return;
+
+  const { doc, collection, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => batch.set(doc(collection(db, ROAD_TAX_RATES_COLLECTION)), r));
+      await batch.commit();
+    }
+    showToast(`匯入完成：已新增 ${rows.length} 筆路稅資料。`);
+    fileInput.value = '';
+    logImportHistory(ROAD_TAX_RATES_COLLECTION, '路稅資料', rows.length);
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportRoadTaxRatesCSV() {
+  const header = ['ccMin', 'ccMax', 'roadTax'];
+  const lines = [header.join(',')];
+  roadTaxRatesCache.forEach(r => {
+    lines.push(header.map(k => csvEscape(r[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `road-tax-rates-export-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -2017,6 +2614,8 @@ function listenImportHistory() {
 function renderImportHistory() {
   renderImportHistoryList('motoImportHistoryBox', 'motoImportHistoryList', MOTO_COLLECTION);
   renderImportHistoryList('installmentImportHistoryBox', 'installmentImportHistoryList', NEW_CAR_INSTALLMENT_COLLECTION);
+  renderImportHistoryList('insuranceRatesImportHistoryBox', 'insuranceRatesImportHistoryList', INSURANCE_RATES_COLLECTION);
+  renderImportHistoryList('roadTaxRatesImportHistoryBox', 'roadTaxRatesImportHistoryList', ROAD_TAX_RATES_COLLECTION);
 }
 
 function renderImportHistoryList(boxId, listId, collectionName) {
