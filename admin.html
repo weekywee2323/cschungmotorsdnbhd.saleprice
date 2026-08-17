@@ -140,6 +140,19 @@
         </div>
       </div>
 
+      <!-- Fleet Price List Import -->
+      <div class="card-light rounded-2xl p-6 mb-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          整批更新新車價格（車隊清單）
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 只要含 Brand, Model, Sales Price, Type 這些欄位就能自動辨識（欄位順序、前面有沒有空白列都沒關係）。同品牌+型號會更新賣價與車型分類，保險/路稅/車牌費會保留原本已經設定的數字；資料庫沒有的型號會直接新增，售價留空的車款會先存成 0。</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="fleetPriceCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importFleetPriceCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入新車價格 CSV</button>
+        </div>
+      </div>
+
       <!-- Add New -->
       <div class="card-light rounded-2xl p-6 mb-6">
         <h2 class="text-base font-bold mb-4 flex items-center gap-2">
@@ -943,6 +956,101 @@ async function importClassificationCSV() {
       await batch.commit();
     }
     showToast(`已更新 ${matched.length} 筆車款分類。`);
+    fileInput.value = '';
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+// Parses the "Fleet Sales Price Ledger" export: header + column order can
+// shift around (there's usually a leading blank column), so this finds
+// "Brand"/"Model"/"Sales Price"/"Type" by name in whichever row has both
+// Brand and Model, rather than assuming fixed positions.
+function parseFleetPriceCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1, headerFields = null;
+  for (let i = 0; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.some(c => /^brand$/i.test(c.trim())) && f.some(c => /^model$/i.test(c.trim()))) {
+      headerIdx = i;
+      headerFields = f;
+      break;
+    }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含 "Brand" 與 "Model" 欄位），請確認是不是正確的新車價格 CSV。');
+  }
+
+  const colIdx = {
+    brand: headerFields.findIndex(c => /^brand$/i.test(c.trim())),
+    model: headerFields.findIndex(c => /^model$/i.test(c.trim())),
+    price: headerFields.findIndex(c => /sales price/i.test(c.trim())),
+    type: headerFields.findIndex(c => /^type/i.test(c.trim())),
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const brand = (f[colIdx.brand] || '').trim();
+    const model = (f[colIdx.model] || '').trim();
+    if (!brand || !model) continue;
+    rows.push({
+      brand,
+      model,
+      msrp: colIdx.price >= 0 ? parseRMValue(f[colIdx.price] || '') : 0,
+      classification: colIdx.type >= 0 ? (f[colIdx.type] || '').trim().toUpperCase() : '',
+    });
+  }
+  return rows;
+}
+
+async function importFleetPriceCSV() {
+  const fileInput = document.getElementById('fleetPriceCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseFleetPriceCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將更新/新增 ${rows.length} 筆新車資料（賣價與車型分類會覆蓋，保險/路稅/車牌費會保留原本設定）。確定繼續嗎？`)) return;
+
+  const existingById = new Map(motoCache.map(m => [m.id, m]));
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => {
+        const id = docIdFor(r.brand, r.model);
+        const existing = existingById.get(id);
+        const data = {
+          brand: r.brand,
+          model: r.model,
+          msrp: r.msrp,
+          classification: r.classification || (existing ? (existing.classification || '') : ''),
+          ins1st: existing ? numOr0(existing.ins1st) : 0,
+          ins3rd: existing ? numOr0(existing.ins3rd) : 0,
+          roadTax: existing ? numOr0(existing.roadTax) : 0,
+          plateBooking: existing ? numOr0(existing.plateBooking) : 0,
+          runnerFee: existing ? numOr0(existing.runnerFee) : 0,
+        };
+        batch.set(doc(db, MOTO_COLLECTION, id), data);
+      });
+      await batch.commit();
+    }
+    showToast(`已更新 ${rows.length} 筆新車資料。`);
     fileInput.value = '';
   } catch (err) {
     showToast('匯入失敗：' + err.message, true);
