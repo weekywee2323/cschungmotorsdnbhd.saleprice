@@ -390,9 +390,6 @@
               <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
               <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
             </label>
-            <button id="btnGoInsuranceCalc" onclick="goToInsuranceCalc('new')" class="hidden w-full text-[11px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
-              <span>🧮</span> 前往保費/路稅計算器（依車型・CC・客戶年齡查詢）
-            </button>
           </div>
 
           <button class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcNew()">
@@ -576,6 +573,11 @@
                 <span id="loanActionText">⚡ 帶入此金額至【借貸計算器】試算</span>
               </button>
             </div>
+
+            <!-- Go to Insurance Calculator -->
+            <button id="btnGoInsuranceCalc" onclick="goToInsuranceCalc('new')" class="hidden w-full mt-3 text-[11px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5">
+              <span>🧮</span> 前往保費/路稅計算器（依車型・CC・客戶年齡查詢）
+            </button>
           </div>
 
           <div class="mt-4 flex items-start gap-2 text-[10px] text-slate-400">
