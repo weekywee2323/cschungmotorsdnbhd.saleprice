@@ -21,3 +21,4 @@ const NEW_CAR_INSTALLMENT_COLLECTION = "newCarInstallmentData";
 const IMPORT_HISTORY_COLLECTION = "importHistory";
 const INSURANCE_RATES_COLLECTION = "insuranceRates";
 const ROAD_TAX_RATES_COLLECTION = "roadTaxRates";
+const PROCESSING_FEE_RATES_COLLECTION = "processingFeeRates";

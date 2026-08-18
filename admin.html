@@ -560,6 +560,59 @@
           </table>
         </div>
       </div>
+
+      <!-- JPJ & Processing Fee Rates -->
+      <div class="card-light rounded-2xl p-6 mt-6">
+        <h2 class="text-base font-bold mb-1 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span>
+          JPJ &amp; PROCESSING FEE 資料（依排氣量，車型分類可設定覆蓋）
+        </h2>
+        <p class="text-xs text-slate-500 mb-4">CSV 欄位：車型分類（選填）, CC下限, CC上限, 金額（含標題列，欄位名稱需含這些關鍵字，順序不拘）。有填車型分類的那一列會直接依車型分類比對（不看 CC，例如 EV 車款不論 CC 都算一樣的費用）；車型分類留空的列則依 CC 區間比對。匯入是新增資料，不會自動比對覆蓋。這個費用只會出現在新車頁面（現金與分期都會顯示）。</p>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <input id="processingFeeRatesCsvFileInput" type="file" accept=".csv" class="text-xs" />
+          <button onclick="importProcessingFeeRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-accent-blue hover:bg-accent-blueHover text-white transition-all">匯入 CSV</button>
+          <button onclick="exportProcessingFeeRatesCSV()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all">匯出目前資料為 CSV</button>
+        </div>
+        <div id="processingFeeRatesImportHistoryBox" class="hidden mb-4 pb-4 border-b border-slate-100">
+          <p class="text-[11px] font-bold text-slate-500 mb-2">最近匯入紀錄</p>
+          <ul id="processingFeeRatesImportHistoryList" class="text-[11px] text-slate-500 space-y-1"></ul>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200/60">
+          <select id="newProcFeeClassification" class="form-ctrl rounded-xl px-3 py-2 text-xs">
+            <option value="">（留空＝依CC比對）</option>
+            <option value="MOPED">MOPED</option>
+            <option value="BIG BIKE">BIG BIKE</option>
+            <option value="SUPERBIKE">SUPERBIKE</option>
+            <option value="EV">EV</option>
+            <option value="ATV">ATV</option>
+          </select>
+          <input id="newProcFeeCcMin" type="number" placeholder="CC下限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newProcFeeCcMax" type="number" placeholder="CC上限" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+          <input id="newProcFeeAmount" type="number" placeholder="金額" class="form-ctrl rounded-xl px-3 py-2 text-xs" />
+        </div>
+        <button onclick="addProcessingFeeRate()" class="mb-5 px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-red hover:bg-accent-redHover text-white transition-all">＋ 新增一筆 JPJ & PROCESSING FEE 資料</button>
+
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <h3 class="text-xs font-bold text-slate-600">共 <span id="processingFeeRatesCount">0</span> 筆</h3>
+          <button id="processingFeeRatesDeleteSelectedBtn" onclick="deleteSelectedProcessingFeeRates()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                <th class="px-2 py-3 w-8"><input type="checkbox" id="processingFeeRatesSelectAllChk" onchange="toggleProcessingFeeRatesSelectAll(this.checked)"></th>
+                <th class="text-left px-2 py-3 font-bold">車型分類</th>
+                <th class="text-right px-2 py-3 font-bold">CC下限</th>
+                <th class="text-right px-2 py-3 font-bold">CC上限</th>
+                <th class="text-right px-2 py-3 font-bold">金額</th>
+                <th class="text-left px-2 py-3 font-bold">操作</th>
+              </tr>
+            </thead>
+            <tbody id="processingFeeRatesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
       </section>
 
       <!-- ============================================================ -->
@@ -640,6 +693,7 @@ let inventoryCache = [];
 let installmentCache = [];
 let insuranceRatesCache = [];
 let roadTaxRatesCache = [];
+let processingFeeRatesCache = [];
 let unsubscribeMoto = null;
 let unsubscribeUsedMoto = null;
 let unsubscribeSettings = null;
@@ -648,6 +702,7 @@ let unsubscribeInventory = null;
 let unsubscribeInstallment = null;
 let unsubscribeInsuranceRates = null;
 let unsubscribeRoadTaxRates = null;
+let unsubscribeProcessingFeeRates = null;
 let unsubscribeImportHistory = null;
 let importHistoryCache = [];
 
@@ -659,6 +714,7 @@ let selectedInstallmentIds = new Set();
 
 let selectedInsuranceRateIds = new Set();
 let selectedRoadTaxRateIds = new Set();
+let selectedProcessingFeeRateIds = new Set();
 
 let motoSearchTerm = '';
 let selectedMotoIds = new Set();
@@ -709,6 +765,7 @@ async function initFirebase() {
     listenInstallmentData();
     listenInsuranceRates();
     listenRoadTaxRates();
+    listenProcessingFeeRates();
     listenImportHistory();
   });
 }
@@ -773,6 +830,7 @@ async function logout() {
   if (unsubscribeInstallment) { unsubscribeInstallment(); unsubscribeInstallment = null; }
   if (unsubscribeInsuranceRates) { unsubscribeInsuranceRates(); unsubscribeInsuranceRates = null; }
   if (unsubscribeRoadTaxRates) { unsubscribeRoadTaxRates(); unsubscribeRoadTaxRates = null; }
+  if (unsubscribeProcessingFeeRates) { unsubscribeProcessingFeeRates(); unsubscribeProcessingFeeRates = null; }
   if (unsubscribeImportHistory) { unsubscribeImportHistory(); unsubscribeImportHistory = null; }
   await window.__authMod.signOut(auth);
 }
@@ -2455,6 +2513,230 @@ function exportRoadTaxRatesCSV() {
 }
 
 // ================================================================
+// JPJ & PROCESSING FEE RATES — depends on CC, except a row that has a
+// classification set (e.g. EV) always wins for vehicles of that
+// classification regardless of CC. Only shown on the New Car page (cash
+// and installment). Same no-natural-key / add-only import as the two
+// rate tables above.
+// ================================================================
+function listenProcessingFeeRates() {
+  if (unsubscribeProcessingFeeRates) return;
+  const { collection, onSnapshot } = window.__fsMod;
+  unsubscribeProcessingFeeRates = onSnapshot(collection(db, PROCESSING_FEE_RATES_COLLECTION), (snapshot) => {
+    processingFeeRatesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    processingFeeRatesCache.sort((a, b) => `${a.classification || ''}`.localeCompare(b.classification || '') || numOr0(a.ccMin) - numOr0(b.ccMin));
+    renderProcessingFeeRatesTable();
+  }, (err) => {
+    showToast('讀取 JPJ & Processing Fee 資料失敗：' + err.message, true);
+  });
+}
+
+function toggleProcessingFeeRateSelect(id, checked) {
+  if (checked) selectedProcessingFeeRateIds.add(id); else selectedProcessingFeeRateIds.delete(id);
+  updateProcessingFeeRatesBulkBar();
+}
+
+function toggleProcessingFeeRatesSelectAll(checked) {
+  processingFeeRatesCache.forEach(r => checked ? selectedProcessingFeeRateIds.add(r.id) : selectedProcessingFeeRateIds.delete(r.id));
+  renderProcessingFeeRatesTable();
+}
+
+function updateProcessingFeeRatesBulkBar() {
+  const btn = document.getElementById('processingFeeRatesDeleteSelectedBtn');
+  btn.textContent = `刪除已選取 (${selectedProcessingFeeRateIds.size})`;
+  btn.disabled = selectedProcessingFeeRateIds.size === 0;
+}
+
+async function deleteSelectedProcessingFeeRates() {
+  const ids = [...selectedProcessingFeeRateIds];
+  if (ids.length === 0) return;
+  if (!confirm(`確定要刪除選取的 ${ids.length} 筆 JPJ & Processing Fee 資料嗎？此動作無法復原。`)) return;
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, PROCESSING_FEE_RATES_COLLECTION, id)));
+      await batch.commit();
+    }
+    showToast(`已刪除 ${ids.length} 筆資料。`);
+    selectedProcessingFeeRateIds.clear();
+  } catch (err) {
+    showToast('批次刪除失敗：' + err.message, true);
+  }
+}
+
+function renderProcessingFeeRatesTable() {
+  document.getElementById('processingFeeRatesCount').textContent = processingFeeRatesCache.length;
+  const tbody = document.getElementById('processingFeeRatesTableBody');
+  updateProcessingFeeRatesBulkBar();
+
+  const allChk = document.getElementById('processingFeeRatesSelectAllChk');
+  if (allChk) allChk.checked = processingFeeRatesCache.length > 0 && processingFeeRatesCache.every(r => selectedProcessingFeeRateIds.has(r.id));
+
+  if (processingFeeRatesCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 text-xs">目前沒有資料，請先用上方「匯入 CSV」或手動新增一筆。</td></tr>`;
+    return;
+  }
+
+  const CLASSIFICATIONS = ['', 'MOPED', 'BIG BIKE', 'SUPERBIKE', 'EV', 'ATV'];
+  tbody.innerHTML = processingFeeRatesCache.map(r => `
+    <tr data-id="${r.id}" class="border-b border-slate-100 hover:bg-slate-50 align-middle">
+      <td class="px-2 py-2 text-center"><input type="checkbox" class="row-check" ${selectedProcessingFeeRateIds.has(r.id) ? 'checked' : ''} onchange="toggleProcessingFeeRateSelect('${r.id}', this.checked)"></td>
+      <td class="px-2 py-2">
+        <select class="pf-classification form-ctrl w-28 rounded-lg px-2 py-1.5 text-xs">
+          ${CLASSIFICATIONS.map(c => `<option value="${c}" ${((r.classification || '') === c) ? 'selected' : ''}>${c || '（留空＝依CC比對）'}</option>`).join('')}
+        </select>
+      </td>
+      <td class="px-2 py-2"><input type="number" class="pf-ccMin form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMin)}"></td>
+      <td class="px-2 py-2"><input type="number" class="pf-ccMax form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.ccMax)}"></td>
+      <td class="px-2 py-2"><input type="number" class="pf-fee form-ctrl w-20 rounded-lg px-1.5 py-1.5 text-xs text-right" value="${numOr0(r.fee)}"></td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button onclick="saveProcessingFeeRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blueHover text-white text-[11px] font-bold mr-1">儲存</button>
+        <button onclick="deleteProcessingFeeRateRow('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveProcessingFeeRateRow(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const data = {
+    classification: tr.querySelector('.pf-classification').value,
+    ccMin: numOr0(tr.querySelector('.pf-ccMin').value),
+    ccMax: numOr0(tr.querySelector('.pf-ccMax').value),
+    fee: numOr0(tr.querySelector('.pf-fee').value),
+  };
+  const { doc, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(db, PROCESSING_FEE_RATES_COLLECTION, id), data);
+    showToast('已儲存。');
+  } catch (err) {
+    showToast('儲存失敗：' + err.message, true);
+  }
+}
+
+async function deleteProcessingFeeRateRow(id) {
+  if (!confirm('確定要刪除這筆資料嗎？此動作無法復原。')) return;
+  const { doc, deleteDoc } = window.__fsMod;
+  try {
+    await deleteDoc(doc(db, PROCESSING_FEE_RATES_COLLECTION, id));
+    showToast('已刪除。');
+  } catch (err) {
+    showToast('刪除失敗：' + err.message, true);
+  }
+}
+
+async function addProcessingFeeRate() {
+  const data = {
+    classification: document.getElementById('newProcFeeClassification').value,
+    ccMin: numOr0(document.getElementById('newProcFeeCcMin').value),
+    ccMax: numOr0(document.getElementById('newProcFeeCcMax').value),
+    fee: numOr0(document.getElementById('newProcFeeAmount').value),
+  };
+  const { doc, collection, setDoc } = window.__fsMod;
+  try {
+    await setDoc(doc(collection(db, PROCESSING_FEE_RATES_COLLECTION)), data);
+    showToast('已新增一筆 JPJ & Processing Fee 資料。');
+    ['newProcFeeCcMin', 'newProcFeeCcMax', 'newProcFeeAmount'].forEach(fid => document.getElementById(fid).value = '');
+    document.getElementById('newProcFeeClassification').value = '';
+  } catch (err) {
+    showToast('新增失敗：' + err.message, true);
+  }
+}
+
+function parseProcessingFeeRatesCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  let headerIdx = -1, headerFields = null;
+  for (let i = 0; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.some(c => /cc下限|ccmin/i.test(c.trim())) && f.some(c => /金額|fee|amount/i.test(c.trim()))) {
+      headerIdx = i; headerFields = f; break;
+    }
+  }
+  if (headerIdx === -1) {
+    throw new Error('找不到標題列（需含「CC下限」與「金額」欄位），請確認 CSV 格式。');
+  }
+
+  const findCol = (re) => headerFields.findIndex(c => re.test(c.trim()));
+  const colIdx = {
+    classification: findCol(/車型分類|classification/i),
+    ccMin: findCol(/cc下限|ccmin/i),
+    ccMax: findCol(/cc上限|ccmax/i),
+    fee: findCol(/金額|fee|amount/i),
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const classification = colIdx.classification >= 0 ? (f[colIdx.classification] || '').trim().toUpperCase() : '';
+    const ccMinRaw = colIdx.ccMin >= 0 ? (f[colIdx.ccMin] || '').trim() : '';
+    if (!classification && !ccMinRaw) continue;
+    rows.push({
+      classification,
+      ccMin: colIdx.ccMin >= 0 ? parseRMValue(f[colIdx.ccMin] || '') : 0,
+      ccMax: colIdx.ccMax >= 0 ? parseRMValue(f[colIdx.ccMax] || '') : 0,
+      fee: colIdx.fee >= 0 ? parseRMValue(f[colIdx.fee] || '') : 0,
+    });
+  }
+  return rows;
+}
+
+async function importProcessingFeeRatesCSV() {
+  const fileInput = document.getElementById('processingFeeRatesCsvFileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    showToast('請先選擇 CSV 檔案', true);
+    return;
+  }
+  const text = await file.text();
+
+  let rows;
+  try {
+    rows = parseProcessingFeeRatesCSV(text);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (rows.length === 0) {
+    showToast('沒有解析到任何有效的資料列', true);
+    return;
+  }
+  if (!confirm(`即將新增 ${rows.length} 筆 JPJ & Processing Fee 資料（不會比對覆蓋既有資料）。確定繼續嗎？`)) return;
+
+  const { doc, collection, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + CHUNK).forEach(r => batch.set(doc(collection(db, PROCESSING_FEE_RATES_COLLECTION)), r));
+      await batch.commit();
+    }
+    showToast(`匯入完成：已新增 ${rows.length} 筆資料。`);
+    fileInput.value = '';
+    logImportHistory(PROCESSING_FEE_RATES_COLLECTION, 'JPJ & Processing Fee 資料', rows.length);
+  } catch (err) {
+    showToast('匯入失敗：' + err.message, true);
+  }
+}
+
+function exportProcessingFeeRatesCSV() {
+  const header = ['classification', 'ccMin', 'ccMax', 'fee'];
+  const lines = [header.join(',')];
+  processingFeeRatesCache.forEach(r => {
+    lines.push(header.map(k => csvEscape(r[k] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `processing-fee-rates-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
 // STAFF ACCOUNTS — calculator login + per-account discount limit
 // ================================================================
 function listenStaffData() {
@@ -2616,6 +2898,7 @@ function renderImportHistory() {
   renderImportHistoryList('installmentImportHistoryBox', 'installmentImportHistoryList', NEW_CAR_INSTALLMENT_COLLECTION);
   renderImportHistoryList('insuranceRatesImportHistoryBox', 'insuranceRatesImportHistoryList', INSURANCE_RATES_COLLECTION);
   renderImportHistoryList('roadTaxRatesImportHistoryBox', 'roadTaxRatesImportHistoryList', ROAD_TAX_RATES_COLLECTION);
+  renderImportHistoryList('processingFeeRatesImportHistoryBox', 'processingFeeRatesImportHistoryList', PROCESSING_FEE_RATES_COLLECTION);
 }
 
 function renderImportHistoryList(boxId, listId, collectionName) {

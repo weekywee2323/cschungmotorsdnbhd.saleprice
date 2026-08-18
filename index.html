@@ -288,6 +288,10 @@
           <svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
           <span data-i18n="tabNew">新車定價</span>
         </button>
+        <button id="tabInsuranceCalc" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('insuranceCalc')">
+          <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span>保費/路稅計算器</span>
+        </button>
         <button id="tabUsedSale" class="tab-btn flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900" onclick="switchTab('usedSale')">
           <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM3 6h13l3 5v6h-2m-9 0H5V6"/></svg>
           <span>二手車定價</span>
@@ -385,6 +389,10 @@
             <label class="flex items-center gap-3 cursor-pointer group">
               <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
               <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" id="chkProcessingFee" class="chk-box" onchange="onNewInputChange()" />
+              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">JPJ & PROCESSING FEE</span>
             </label>
             <button id="btnGoInsuranceCalc" onclick="goToInsuranceCalc('new')" class="hidden w-full text-[11px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
               <span>🧮</span> 前往保費/路稅計算器（依車型・CC・客戶年齡查詢）
@@ -502,6 +510,14 @@
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-rose-600" id="valRunner">—</td>
                   </tr>
+                  <!-- JPJ & Processing Fee (CC-based, EV overrides by classification) -->
+                  <tr class="res-row dimmed border-b border-slate-200" id="rowProcessingFee">
+                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                      JPJ & PROCESSING FEE
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-teal-600" id="valProcessingFee">—</td>
+                  </tr>
                   <!-- OTR Total -->
                   <tr class="res-row border-b border-slate-200 bg-slate-50/50">
                     <td class="px-5 py-3.5 text-slate-800 font-bold flex items-center gap-2">
@@ -544,14 +560,14 @@
                   <tr>
                     <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含保費/路稅/其他費用（不會計入貸款金額，需另外現金支付）</td>
                   </tr>
-                  <!-- Grand Total: what the customer actually pays out overall, financed -->
-                  <!-- amount plus insurance/road tax/other fees paid separately -->
-                  <tr id="rowGrandTotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
+                  <!-- Fees subtotal — kept separate from the vehicle/loan amount on -->
+                  <!-- purpose, never summed together into one combined figure -->
+                  <tr id="rowFeesSubtotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
                     <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
-                      客戶總支出（含保費/路稅/其他費用）
+                      保費/路稅/其他費用小計
                     </td>
-                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="valGrandTotal">—</td>
+                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="valFeesSubtotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -764,12 +780,12 @@
                   <tr>
                     <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含保費/路稅/驗車費（不會計入貸款金額，需另外現金支付）</td>
                   </tr>
-                  <tr id="usedSaleRowGrandTotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
+                  <tr id="usedSaleRowFeesSubtotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
                     <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
-                      客戶總支出（含保費/路稅/驗車費）
+                      保費/路稅/驗車費小計
                     </td>
-                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="usedSaleValGrandTotal">—</td>
+                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="usedSaleValFeesSubtotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -1118,8 +1134,7 @@
     </section>
 
     <!-- ============================================================ -->
-    <!-- PANEL: INSURANCE / ROAD TAX CALCULATOR — only reachable via   -->
-    <!-- the "前往保費/路稅計算器" button on the New Car page          -->
+    <!-- PANEL: INSURANCE / ROAD TAX CALCULATOR                        -->
     <!-- ============================================================ -->
     <section id="panelInsuranceCalc" class="tab-panel">
       <div class="max-w-lg mx-auto card-light rounded-2xl p-6 sm:p-8">
@@ -1127,27 +1142,34 @@
           <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
           保費/路稅計算器
         </h3>
-        <p class="text-xs text-slate-500 mb-5">依車型分類、排氣量 (CC) 與客戶年齡查詢保費，路稅則依排氣量查詢。這裡算出的金額不會計入貸款金額，回到新車頁面後會單獨顯示。</p>
+        <p class="text-xs text-slate-500 mb-5">依車型分類、排氣量 (CC) 與客戶年齡區間查詢保費，路稅則依排氣量查詢。這裡算出的金額不會計入貸款金額，可以套用到新車頁面單獨顯示。</p>
 
-        <div id="insCalcVehicleInfo" class="mb-5 px-4 py-3 rounded-xl bg-sky-50/50 border border-sky-100">
-          <p class="text-[10px] uppercase font-bold text-slate-400">車款</p>
-          <p class="text-sm font-extrabold text-slate-800" id="insCalcVehicleName">—</p>
-          <p class="text-[11px] text-slate-500 mt-0.5" id="insCalcVehicleMeta">—</p>
+        <label class="block mb-1 text-xs font-bold text-slate-600">品牌</label>
+        <select id="insCalcBrand" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" onchange="onBrandChange('insCalc')">
+          <option value="">— 請選擇 —</option>
+        </select>
+
+        <label class="block mb-1 text-xs font-bold text-slate-600">型號</label>
+        <select id="insCalcModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onInsCalcVehicleChange()">
+          <option value="">— 請先選擇品牌 —</option>
+        </select>
+
+        <div id="insCalcVehicleInfo" class="hidden mb-5 px-4 py-3 rounded-xl bg-sky-50/50 border border-sky-100">
+          <p class="text-[11px] font-bold text-sky-700" id="insCalcVehicleMeta">—</p>
         </div>
 
-        <label class="block mb-1 text-xs font-bold text-slate-600">客戶年齡</label>
-        <input id="insCalcAge" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-4" placeholder="例如 30" />
+        <label class="block mb-2 text-xs font-bold text-slate-600">客戶年齡</label>
+        <div class="grid grid-cols-3 gap-1.5 mb-5" id="insCalcAgeButtonGroup">
+          <button onclick="setInsCalcAgeBand(24)" data-age="24" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">18-30歲</button>
+          <button onclick="setInsCalcAgeBand(50)" data-age="50" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">30-70歲</button>
+          <button onclick="setInsCalcAgeBand(80)" data-age="80" class="btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">70歲以上</button>
+        </div>
 
         <label class="block mb-1 text-xs font-bold text-slate-600">保險類型</label>
-        <select id="insCalcType" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none">
+        <select id="insCalcType" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-5 appearance-none" onchange="if (insCalcSelectedAge !== null) calcInsurance()">
           <option value="3rd">三號保險 (Third Party)</option>
           <option value="1st">一號保險 (First Party)</option>
         </select>
-
-        <button onclick="calcInsurance()" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 mb-5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-          計算保費/路稅
-        </button>
 
         <p id="insCalcWarning" class="hidden text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-5"></p>
 
@@ -1166,7 +1188,7 @@
           </table>
         </div>
 
-        <button onclick="closeInsuranceCalc()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold transition-all">← 返回新車頁面</button>
+        <button id="btnApplyInsuranceCalc" onclick="applyInsuranceCalcToNewCar()" class="hidden w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99]">套用到新車頁面 →</button>
       </div>
     </section>
 
@@ -1263,20 +1285,13 @@
                 <td class="px-5 py-3 text-slate-700 font-medium">路稅</td>
                 <td class="px-5 py-3 text-right font-semibold text-amber-600" id="receiptRoadTax">—</td>
               </tr>
-              <tr class="res-row">
-                <td class="px-5 py-3 text-slate-700 font-medium">其他費用（車牌/人工費/驗車費等）</td>
+              <tr class="res-row border-b border-slate-200">
+                <td class="px-5 py-3 text-slate-700 font-medium">其他費用（車牌/人工費/JPJ &amp; Processing Fee/驗車費等）</td>
                 <td class="px-5 py-3 text-right font-semibold text-violet-600" id="receiptOtherExtras">—</td>
               </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="overflow-x-auto rounded-xl border border-slate-300 mb-6">
-          <table class="w-full text-sm">
-            <tbody>
               <tr class="res-row bg-slate-50">
-                <td class="px-5 py-4 text-slate-800 font-extrabold">客戶總支出（總還款額 + 保費/路稅/其他費用）</td>
-                <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="receiptGrandTotal">—</td>
+                <td class="px-5 py-3.5 text-slate-800 font-extrabold">保費/路稅/其他費用小計</td>
+                <td class="px-5 py-3.5 text-right font-black text-lg text-slate-800" id="receiptFeesSubtotal">—</td>
               </tr>
             </tbody>
           </table>
@@ -1328,7 +1343,11 @@ let installmentBrandMap = {}; // { Brand: [model1, model2, ...] } from installme
 
 let insuranceRatesData = []; // { classification, ccMin, ccMax, ageMin, ageMax, ins1st, ins3rd } rows
 let roadTaxRatesData = [];   // { ccMin, ccMax, roadTax } rows
-let insuranceCalcContext = null; // { returnTab, brand, model, classification, cc } — set when jumping to the Insurance Calculator
+let processingFeeRatesData = []; // { classification, ccMin, ccMax, fee } rows — classification set = overrides CC matching (e.g. EV)
+let insCalcVehicleMap = {};  // { Brand: [model1, model2, ...] } merged from both New Car catalogs, for the Insurance Calculator's own picker
+let insCalcVehicleLookup = {}; // { "BRAND|||MODEL": { classification, cc } }
+let insCalcSelectedAge = null; // representative age of the currently selected age-band button, or null
+let insuranceCalcContext = null; // { brand, model, classification, cc } — the vehicle currently selected on the Insurance Calculator page
 let lastInsuranceCalc = null;    // { insurance, roadTax, insType, age } — result of the last successful Insurance Calculator run, consumed by New/Used Sale results
 const DEFAULT_TRADE_IN_MARGIN = 15; // % used until the admin-configured value loads
 let tradeInMarginPercent = DEFAULT_TRADE_IN_MARGIN;
@@ -1884,6 +1903,17 @@ async function fetchBikeData() {
           if (firstLoad) { firstLoad = false; resolve(); }
         });
       }),
+      new Promise((resolve) => {
+        let firstLoad = true;
+        onSnapshot(collection(db, PROCESSING_FEE_RATES_COLLECTION), (snapshot) => {
+          processingFeeRatesData = snapshot.docs.map(d => d.data());
+          if (firstLoad) { firstLoad = false; resolve(); }
+        }, (err) => {
+          console.warn("Firestore JPJ & Processing Fee 資料連線失敗：", err);
+          processingFeeRatesData = [];
+          if (firstLoad) { firstLoad = false; resolve(); }
+        });
+      }),
     ]);
   } catch (err) {
     console.warn("Firebase 載入失敗，改用離線備援資料：", err);
@@ -1897,6 +1927,7 @@ async function fetchBikeData() {
     applyInstallmentDataUpdate();
     insuranceRatesData = [];
     roadTaxRatesData = [];
+    processingFeeRatesData = [];
   }
 }
 
@@ -1905,6 +1936,7 @@ async function fetchBikeData() {
 function applyMotoDataUpdate() {
   brandMap = buildBrandMap(motorcycleData);
   refreshBrandDropdown('new');
+  buildInsCalcVehicleData();
   updateLoanButtonsState();
 
   // Live-refresh an already displayed New Bike result if its price changed.
@@ -1951,6 +1983,7 @@ function applyInstallmentDataUpdate() {
   if (currentSubTab === 'installment') {
     refreshBrandDropdown('new');
   }
+  buildInsCalcVehicleData();
   if (lastNewCalc && currentSubTab === 'installment') {
     const fresh = findEffectiveNewMoto(lastNewCalc.brand, lastNewCalc.model);
     if (fresh) {
@@ -2150,7 +2183,7 @@ function renderUsedSaleResults() {
   }
 
   document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
-  document.getElementById('usedSaleValGrandTotal').textContent = fmt(netPay + otherFeesVal);
+  document.getElementById('usedSaleValFeesSubtotal').textContent = fmt(otherFeesVal);
 
   // Only offer to jump to the Loan Calculator on the Installment sub-tab —
   // Cash sales aren't financed, so there's nothing to send there.
@@ -2227,8 +2260,38 @@ function buildBrandMap(data) {
 // larger) financing pricelist so models not sold for cash still show up.
 function getSectionBrandMap(section) {
   if (section === 'used') return usedBrandMap;
+  if (section === 'insCalc') return insCalcVehicleMap;
   if (section === 'new' && currentSubTab === 'installment') return installmentBrandMap;
   return brandMap;
+}
+
+// Insurance Calculator has its own vehicle picker, merged from both New Car
+// catalogs (Cash + Installment) since either could carry the classification/
+// CC it needs — later source (installment) wins a conflict only if the
+// earlier one (cash) left that field blank.
+function buildInsCalcVehicleData() {
+  const merged = {};
+  const lookup = {};
+  const absorb = (list) => {
+    list.forEach(m => {
+      if (!m.brand || !m.model) return;
+      if (!merged[m.brand]) merged[m.brand] = [];
+      if (!merged[m.brand].includes(m.model)) merged[m.brand].push(m.model);
+      const key = `${m.brand}|||${m.model}`;
+      const existing = lookup[key];
+      lookup[key] = {
+        classification: m.classification || (existing ? existing.classification : ''),
+        cc: numOr0(m.cc) || (existing ? existing.cc : 0),
+      };
+    });
+  };
+  absorb(motorcycleData);
+  absorb(installmentData);
+  const sorted = {};
+  Object.keys(merged).sort().forEach(k => { sorted[k] = merged[k].sort(); });
+  insCalcVehicleMap = sorted;
+  insCalcVehicleLookup = lookup;
+  refreshBrandDropdown('insCalc');
 }
 
 // Repopulates a section's brand/model dropdowns from its current data map,
@@ -2291,16 +2354,14 @@ function onBrandChange(section) {
 // TAB SWITCH NAVIGATION
 // ================================================================
 function switchTab(tab) {
-  // panelReceipt and panelInsuranceCalc aren't part of the normal nav
-  // (each is only reached via its own jump button) so neither is in the
-  // tabs list below — they have to be hidden explicitly here, or one would
-  // stay stacked on top of whatever panel is switched to next.
+  // panelReceipt isn't part of the normal nav (it's only reached via the
+  // Loan Calculator's "產生成交紀錄" button) so it's not in the tabs list
+  // below — it has to be hidden explicitly here, or it would stay stacked
+  // on top of whatever panel is switched to next.
   const receiptPanel = document.getElementById('panelReceipt');
   if (receiptPanel) receiptPanel.classList.remove('active');
-  const insCalcPanel = document.getElementById('panelInsuranceCalc');
-  if (insCalcPanel) insCalcPanel.classList.remove('active');
 
-  const tabs = ['new', 'usedSale', 'used', 'usedLookup', 'loan'];
+  const tabs = ['new', 'insuranceCalc', 'usedSale', 'used', 'usedLookup', 'loan'];
   tabs.forEach(t => {
     const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -2476,6 +2537,7 @@ function renderNewResults() {
   const chkRoadTax = document.getElementById('chkRoadTax').checked;
   const chkPlate = document.getElementById('chkPlate').checked;
   const chkRunner = document.getElementById('chkRunner').checked;
+  const chkProcessingFee = document.getElementById('chkProcessingFee').checked;
 
   // Validate the negotiated selling price against this staff member's
   // discount limit before computing anything else.
@@ -2505,7 +2567,7 @@ function renderNewResults() {
   if (!priceValid) {
     // Can't compute a result with an out-of-range price — clear the rest
     // of the table instead of showing numbers based on an invalid input.
-    ['valInsurance', 'valRoadTax', 'valPlate', 'valRunner', 'valOTR', 'valNetPay', 'valGrandTotal'].forEach(id => {
+    ['valInsurance', 'valRoadTax', 'valPlate', 'valRunner', 'valProcessingFee', 'valOTR', 'valNetPay', 'valFeesSubtotal'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
     document.getElementById('rowDownPayment').classList.add('hidden');
@@ -2535,7 +2597,9 @@ function renderNewResults() {
   const roadTaxVal = chkRoadTax ? (insCalcMatches ? lastInsuranceCalc.roadTax : (moto.roadTax || 0)) : 0;
   const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
   const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
-  const otherFeesVal = insurance + roadTaxVal + plateVal + runnerVal;
+  const procFeeRate = chkProcessingFee ? findProcessingFeeRate(moto.classification || '', numOr0(moto.cc)) : null;
+  const processingFeeVal = procFeeRate ? numOr0(procFeeRate.fee) : 0;
+  const otherFeesVal = insurance + roadTaxVal + plateVal + runnerVal + processingFeeVal;
   const otr = sellingPrice + otherFeesVal;
 
   // Down payment and trade-in both reduce the vehicle price the customer
@@ -2598,6 +2662,17 @@ function renderNewResults() {
     valRunner.textContent = '—';
   }
 
+  // JPJ & Processing Fee row
+  const rowProcessingFee = document.getElementById('rowProcessingFee');
+  const valProcessingFee = document.getElementById('valProcessingFee');
+  if (chkProcessingFee) {
+    rowProcessingFee.classList.remove('dimmed');
+    valProcessingFee.textContent = fmt(processingFeeVal);
+  } else {
+    rowProcessingFee.classList.add('dimmed');
+    valProcessingFee.textContent = '—';
+  }
+
   // OTR row
   document.getElementById('valOTR').textContent = fmt(otr);
 
@@ -2641,11 +2716,10 @@ function renderNewResults() {
   // Final Net Pay value (vehicle price only, excluding insurance/road tax/other fees)
   if (valNetPay) valNetPay.textContent = fmt(netPay);
 
-  // Grand total: what the customer actually pays overall — financed vehicle
-  // amount plus insurance/road tax/other fees paid separately.
-  const grandTotal = netPay + otherFeesVal;
-  const valGrandTotal = document.getElementById('valGrandTotal');
-  if (valGrandTotal) valGrandTotal.textContent = fmt(grandTotal);
+  // Fees subtotal — insurance/road tax/other fees only, deliberately never
+  // summed with the loan/vehicle amount into one combined figure.
+  const valFeesSubtotal = document.getElementById('valFeesSubtotal');
+  if (valFeesSubtotal) valFeesSubtotal.textContent = fmt(otherFeesVal);
 
   // Display Apply offset buttons if calculated trade-in exists
   const applyBtn = document.getElementById('btnApplyTradeInDiscount');
@@ -2710,37 +2784,71 @@ function findRoadTaxRate(cc) {
   return roadTaxRatesData.find(r => cc >= numOr0(r.ccMin) && cc <= numOr0(r.ccMax));
 }
 
+// A row with a classification set (e.g. EV) always wins for vehicles of
+// that classification regardless of CC — otherwise fall back to matching
+// by CC range alone.
+function findProcessingFeeRate(classification, cc) {
+  const specific = processingFeeRatesData.find(r => r.classification && r.classification === classification);
+  if (specific) return specific;
+  return processingFeeRatesData.find(r => !r.classification && cc >= numOr0(r.ccMin) && cc <= numOr0(r.ccMax));
+}
+
+// Jumps here from the New Car page with the currently selected vehicle
+// pre-filled into this page's own Brand/Model picker (the calculator is
+// also reachable directly from the nav bar, in which case the picker just
+// starts empty).
 function goToInsuranceCalc(source) {
   if (source === 'new' && lastNewCalc) {
-    insuranceCalcContext = {
-      returnTab: 'new',
-      brand: lastNewCalc.brand,
-      model: lastNewCalc.model,
-      classification: lastNewCalc.classification || '',
-      cc: numOr0(lastNewCalc.cc),
-    };
+    document.getElementById('insCalcBrand').value = lastNewCalc.brand;
+    onBrandChange('insCalc');
+    document.getElementById('insCalcModel').value = lastNewCalc.model;
+    onInsCalcVehicleChange();
   }
-  if (!insuranceCalcContext) return;
+  switchTab('insuranceCalc');
+}
 
-  document.getElementById('insCalcVehicleName').textContent = `${insuranceCalcContext.brand} ${insuranceCalcContext.model}`;
-  document.getElementById('insCalcVehicleMeta').textContent = `車型分類：${insuranceCalcContext.classification || '未設定'} ・ 排氣量：${insuranceCalcContext.cc || '未設定'} CC`;
+function onInsCalcVehicleChange() {
+  const brand = document.getElementById('insCalcBrand').value;
+  const model = document.getElementById('insCalcModel').value;
+  const infoBox = document.getElementById('insCalcVehicleInfo');
   document.getElementById('insCalcResultBox').classList.add('hidden');
   document.getElementById('insCalcWarning').classList.add('hidden');
-  if (lastInsuranceCalc) {
-    document.getElementById('insCalcAge').value = lastInsuranceCalc.age;
-    document.getElementById('insCalcType').value = lastInsuranceCalc.insType;
+  document.getElementById('btnApplyInsuranceCalc').classList.add('hidden');
+
+  if (!brand || !model) {
+    insuranceCalcContext = null;
+    infoBox.classList.add('hidden');
+    return;
   }
 
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panelInsuranceCalc').classList.add('active');
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const meta = insCalcVehicleLookup[`${brand}|||${model}`] || { classification: '', cc: 0 };
+  insuranceCalcContext = { brand, model, classification: meta.classification, cc: meta.cc };
+  document.getElementById('insCalcVehicleMeta').textContent = `車型分類：${meta.classification || '未設定'} ・ 排氣量：${meta.cc || '未設定'} CC`;
+  infoBox.classList.remove('hidden');
+
+  if (insCalcSelectedAge !== null) calcInsurance();
+}
+
+// Age is button-selected rather than typed — each button represents a
+// fixed age band (18-30 / 30-70 / 70+) and passes a representative age
+// from inside that band for matching against the admin's ageMin/ageMax
+// rows, which sidesteps any ambiguity at the exact band boundaries.
+function setInsCalcAgeBand(age) {
+  insCalcSelectedAge = age;
+  document.querySelectorAll('#insCalcAgeButtonGroup button').forEach(btn => {
+    const active = parseFloat(btn.getAttribute('data-age')) === age;
+    btn.className = active
+      ? 'btn-select-item py-2.5 text-xs font-black bg-sky-600 text-white border-2 border-sky-600 rounded-xl shadow-md transform scale-[1.02]'
+      : 'btn-select-item py-2.5 text-xs font-bold border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all';
+  });
+  calcInsurance();
 }
 
 function calcInsurance() {
-  if (!insuranceCalcContext) return;
-  const age = numOr0(document.getElementById('insCalcAge').value);
+  if (!insuranceCalcContext) { alert('請先選擇車款。'); return; }
+  if (insCalcSelectedAge === null) { alert('請選擇客戶年齡。'); return; }
+  const age = insCalcSelectedAge;
   const insType = document.getElementById('insCalcType').value;
-  if (age <= 0) { alert('請輸入客戶年齡。'); return; }
 
   const rate = findInsuranceRate(insuranceCalcContext.classification, insuranceCalcContext.cc, age);
   const roadTaxRate = findRoadTaxRate(insuranceCalcContext.cc);
@@ -2752,6 +2860,7 @@ function calcInsurance() {
   document.getElementById('insCalcResultInsurance').textContent = fmt(insurance);
   document.getElementById('insCalcResultRoadTax').textContent = fmt(roadTax);
   document.getElementById('insCalcResultBox').classList.remove('hidden');
+  document.getElementById('btnApplyInsuranceCalc').classList.remove('hidden');
 
   const warningEl = document.getElementById('insCalcWarning');
   if (!rate || !roadTaxRate) {
@@ -2762,21 +2871,19 @@ function calcInsurance() {
   }
 }
 
-function closeInsuranceCalc() {
-  // Returning implies the staff wants these figures included — auto-check
-  // the New Car page's insurance/road tax boxes and sync its insurance
-  // type selector so the numbers line up immediately.
-  if (lastInsuranceCalc) {
-    const chkIns = document.getElementById('chkInsurance');
-    const chkTax = document.getElementById('chkRoadTax');
-    const insSel = document.getElementById('newInsurance');
-    if (chkIns) chkIns.checked = true;
-    if (chkTax) chkTax.checked = true;
-    if (insSel) insSel.value = lastInsuranceCalc.insType;
-  }
-  const returnTab = (insuranceCalcContext && insuranceCalcContext.returnTab) || 'new';
-  switchTab(returnTab);
-  if (returnTab === 'new' && lastNewCalc) renderNewResults();
+// Convenience action: applying implies the staff wants these figures
+// included on the New Car page — auto-check its insurance/road tax boxes
+// and sync its insurance type selector so the numbers line up immediately.
+function applyInsuranceCalcToNewCar() {
+  if (!lastInsuranceCalc) return;
+  const chkIns = document.getElementById('chkInsurance');
+  const chkTax = document.getElementById('chkRoadTax');
+  const insSel = document.getElementById('newInsurance');
+  if (chkIns) chkIns.checked = true;
+  if (chkTax) chkTax.checked = true;
+  if (insSel) insSel.value = lastInsuranceCalc.insType;
+  switchTab('new');
+  if (lastNewCalc) renderNewResults();
 }
 
 // Function to calculate diff subtraction safely
@@ -3134,8 +3241,7 @@ function renderLoanReceipt() {
   document.getElementById('receiptInsurance').textContent = fmt(insurance);
   document.getElementById('receiptRoadTax').textContent = fmt(roadTax);
   document.getElementById('receiptOtherExtras').textContent = fmt(otherExtras);
-
-  document.getElementById('receiptGrandTotal').textContent = fmt(c.totalRepayment + otherFees);
+  document.getElementById('receiptFeesSubtotal').textContent = fmt(otherFees);
 }
 
 // ================================================================
