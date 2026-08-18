@@ -390,10 +390,6 @@
               <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
               <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" id="chkProcessingFee" class="chk-box" onchange="onNewInputChange()" />
-              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">JPJ & PROCESSING FEE</span>
-            </label>
             <button id="btnGoInsuranceCalc" onclick="goToInsuranceCalc('new')" class="hidden w-full text-[11px] font-bold text-accent-blue bg-blue-50 border border-blue-200/50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
               <span>🧮</span> 前往保費/路稅計算器（依車型・CC・客戶年齡查詢）
             </button>
@@ -510,8 +506,8 @@
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-rose-600" id="valRunner">—</td>
                   </tr>
-                  <!-- JPJ & Processing Fee (CC-based, EV overrides by classification) -->
-                  <tr class="res-row dimmed border-b border-slate-200" id="rowProcessingFee">
+                  <!-- JPJ & Processing Fee — fixed, not a toggle (CC-based, EV overrides by classification) -->
+                  <tr class="res-row border-b border-slate-200" id="rowProcessingFee">
                     <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
                       JPJ & PROCESSING FEE
@@ -2537,7 +2533,6 @@ function renderNewResults() {
   const chkRoadTax = document.getElementById('chkRoadTax').checked;
   const chkPlate = document.getElementById('chkPlate').checked;
   const chkRunner = document.getElementById('chkRunner').checked;
-  const chkProcessingFee = document.getElementById('chkProcessingFee').checked;
 
   // Validate the negotiated selling price against this staff member's
   // discount limit before computing anything else.
@@ -2597,7 +2592,9 @@ function renderNewResults() {
   const roadTaxVal = chkRoadTax ? (insCalcMatches ? lastInsuranceCalc.roadTax : (moto.roadTax || 0)) : 0;
   const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
   const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
-  const procFeeRate = chkProcessingFee ? findProcessingFeeRate(moto.classification || '', numOr0(moto.cc)) : null;
+  // JPJ & Processing Fee is a fixed cost, not an optional toggle — it
+  // always applies once a vehicle (and therefore its CC/classification) is known.
+  const procFeeRate = findProcessingFeeRate(moto.classification || '', numOr0(moto.cc));
   const processingFeeVal = procFeeRate ? numOr0(procFeeRate.fee) : 0;
   const otherFeesVal = insurance + roadTaxVal + plateVal + runnerVal + processingFeeVal;
   const otr = sellingPrice + otherFeesVal;
@@ -2663,15 +2660,7 @@ function renderNewResults() {
   }
 
   // JPJ & Processing Fee row
-  const rowProcessingFee = document.getElementById('rowProcessingFee');
-  const valProcessingFee = document.getElementById('valProcessingFee');
-  if (chkProcessingFee) {
-    rowProcessingFee.classList.remove('dimmed');
-    valProcessingFee.textContent = fmt(processingFeeVal);
-  } else {
-    rowProcessingFee.classList.add('dimmed');
-    valProcessingFee.textContent = '—';
-  }
+  document.getElementById('valProcessingFee').textContent = fmt(processingFeeVal);
 
   // OTR row
   document.getElementById('valOTR').textContent = fmt(otr);
