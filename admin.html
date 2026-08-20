@@ -955,7 +955,7 @@ function readRowData(tr) {
 }
 
 async function saveRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#motoTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = readRowData(tr);
   if (!data.brand || !data.model) {
@@ -1308,7 +1308,7 @@ function readUsedRowData(tr) {
 }
 
 async function saveUsedRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#usedMotoTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = readUsedRowData(tr);
   if (!data.brand || !data.model) {
@@ -1673,7 +1673,7 @@ function readInventoryRowData(tr) {
 }
 
 async function saveInventoryRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#inventoryTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = readInventoryRowData(tr);
   if (!data.brand || !data.model) {
@@ -1938,7 +1938,7 @@ function readInstallmentRowData(tr) {
 }
 
 async function saveInstallmentRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#installmentTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = readInstallmentRowData(tr);
   if (!data.brand || !data.model) {
@@ -2164,7 +2164,7 @@ function readInsuranceRateRowData(tr) {
 }
 
 async function saveInsuranceRateRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#insuranceRatesTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = readInsuranceRateRowData(tr);
   const { doc, setDoc } = window.__fsMod;
@@ -2384,7 +2384,7 @@ function renderRoadTaxRatesTable() {
 }
 
 async function saveRoadTaxRateRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#roadTaxRatesTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = {
     ccMin: numOr0(tr.querySelector('.rt-ccMin').value),
@@ -2602,7 +2602,7 @@ function renderProcessingFeeRatesTable() {
 }
 
 async function saveProcessingFeeRateRow(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const tr = document.querySelector(`#processingFeeRatesTableBody tr[data-id="${id}"]`);
   if (!tr) return;
   const data = {
     classification: tr.querySelector('.pf-classification').value,
