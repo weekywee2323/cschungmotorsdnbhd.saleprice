@@ -164,6 +164,7 @@
         </h2>
         <div class="flex flex-wrap items-center gap-3 mb-3">
           <input id="motoSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onMotoSearchInput()" />
+          <button onclick="autoFillCcMoto()" title="依型號名稱內的數字自動填入 CC（EV 除外）" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition-all">🔧 自動抓取 CC（依型號）</button>
           <button id="motoDeleteSelectedBtn" onclick="deleteSelectedMoto()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
@@ -431,6 +432,7 @@
         </h2>
         <div class="flex flex-wrap items-center gap-3 mb-3">
           <input id="installmentSearchInput" type="text" placeholder="搜尋品牌或型號…" class="form-ctrl rounded-xl px-3 py-2 text-xs flex-1 min-w-[160px]" oninput="onInstallmentSearchInput()" />
+          <button onclick="autoFillCcInstallment()" title="依型號名稱內的數字自動填入 CC（EV 除外）" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white transition-all">🔧 自動抓取 CC（依型號）</button>
           <button id="installmentDeleteSelectedBtn" onclick="deleteSelectedInstallment()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all">刪除已選取 (0)</button>
         </div>
         <div class="overflow-x-auto rounded-xl border border-slate-200">
@@ -2972,6 +2974,59 @@ function applyBulkFieldInventory() {
 function docIdFor(brand, model) {
   const slug = s => String(s).trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return `${slug(brand)}__${slug(model)}`;
+}
+
+// The model name itself carries the engine displacement (e.g. "450MTX" →
+// 450cc), so CC doesn't need to be typed in separately for every model —
+// it can be parsed straight out of the model string. EV models are the one
+// exception: any number in their name is a power/series code, not a real
+// CC, so they're skipped entirely and keep whatever CC value they already
+// have.
+function extractCcFromModel(model) {
+  const m = String(model || '').match(/(\d{2,4})/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// ================================================================
+// AUTO-FILL CC FROM MODEL NAME — bulk-parses every non-EV vehicle's model
+// string for its embedded CC number and writes it straight to Firestore, so
+// road tax / JPJ & Processing Fee / insurance rate lookups (all CC-keyed)
+// stay correct without the CC having to be typed in by hand for every model.
+// ================================================================
+async function autoFillCcFromModel(collectionName, cache, label) {
+  const updates = cache
+    .filter(m => (m.classification || '') !== 'EV')
+    .map(m => ({ id: m.id, cc: extractCcFromModel(m.model) }))
+    .filter(u => u.cc > 0);
+  const skippedNoMatch = cache.filter(m => (m.classification || '') !== 'EV' && extractCcFromModel(m.model) === 0).length;
+  const skippedEV = cache.filter(m => (m.classification || '') === 'EV').length;
+
+  if (updates.length === 0) {
+    showToast('沒有可自動辨識 CC 的型號。', true);
+    return;
+  }
+  if (!confirm(`將依型號名稱內的數字，自動寫入 ${updates.length} 筆${label}的 CC 欄位（會覆蓋原本的 CC 數值）。\n略過 EV：${skippedEV} 筆；型號無法辨識數字：${skippedNoMatch} 筆。\n確定要執行嗎？`)) return;
+
+  const { doc, writeBatch } = window.__fsMod;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < updates.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      updates.slice(i, i + CHUNK).forEach(u => batch.update(doc(db, collectionName, u.id), { cc: u.cc }));
+      await batch.commit();
+    }
+    showToast(`已自動填入 ${updates.length} 筆${label}的 CC。`);
+  } catch (err) {
+    showToast('自動填入失敗：' + err.message, true);
+  }
+}
+
+function autoFillCcMoto() {
+  autoFillCcFromModel(MOTO_COLLECTION, motoCache, '新車現金資料');
+}
+
+function autoFillCcInstallment() {
+  autoFillCcFromModel(NEW_CAR_INSTALLMENT_COLLECTION, installmentCache, '新車分期資料');
 }
 
 function numOr0(v) {
