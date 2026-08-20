@@ -354,7 +354,7 @@
 
           <!-- Model -->
           <label class="block mb-1 text-xs font-bold text-slate-600" data-i18n="labelModel">型號</label>
-          <select id="newModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onNewInputChange()">
+          <select id="newModel" class="form-ctrl sel-arrow w-full rounded-xl px-4 py-2.5 text-sm mb-4 appearance-none" disabled onchange="onNewModelChange()">
             <option value="" data-i18n="phSelectBrandFirst">— 請先選擇品牌 —</option>
           </select>
 
@@ -365,7 +365,8 @@
 
           <!-- Down Payment -->
           <label class="block mb-1 text-xs font-bold text-slate-600">頭期款 (Down Payment)</label>
-          <input id="newDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-5" placeholder="0" oninput="onNewInputChange()" />
+          <input id="newDownPayment" type="number" min="0" class="form-ctrl w-full rounded-xl px-4 py-2.5 text-sm mb-1" placeholder="0" oninput="onNewInputChange()" />
+          <p id="newDownPaymentHint" class="text-[10px] text-slate-400 mb-4"></p>
 
           <!-- Extra Fees Checkboxes — insurance is no longer decided here, it's -->
           <!-- a required later step (Insurance Calculator); road tax and JPJ & -->
@@ -2003,6 +2004,12 @@ function applyInstallmentDataUpdate() {
   }
 }
 
+// The financing company's approved base price is bumped up by the cash
+// price plus a fixed markup whenever that's higher — this is always
+// computed live from the current cash price and base price (never stored),
+// so it automatically stays correct whenever either one is updated.
+const INSTALLMENT_CASH_MARKUP = 2500;
+
 // Looks up the "moto" record to use on the New Car tab for whichever
 // sub-tab is active. Cash reads straight from the price list. Installment
 // reads its base price (and classification) from the financing pricelist,
@@ -2014,9 +2021,13 @@ function findEffectiveNewMoto(brand, model) {
     const rec = installmentData.find(d => d.brand === brand && d.model === model);
     if (!rec) return null;
     const cashMatch = findMoto(brand, model);
+    const basePrice = rec.maxFinancePrice || 0;
+    const cashAdjustedPrice = cashMatch && cashMatch.msrp ? cashMatch.msrp + INSTALLMENT_CASH_MARKUP : 0;
+    const financePrice = Math.max(basePrice, cashAdjustedPrice);
     return {
       brand, model,
-      msrp: rec.maxFinancePrice || 0,
+      msrp: financePrice,
+      installmentBasePrice: basePrice, // the lender's actual approved ceiling — needed to work out the mandatory down payment when financePrice was bumped above it
       ins1st: cashMatch ? (cashMatch.ins1st || 0) : 0,
       ins3rd: cashMatch ? (cashMatch.ins3rd || 0) : 0,
       roadTax: cashMatch ? (cashMatch.roadTax || 0) : 0,
@@ -2529,6 +2540,18 @@ function calcNew() {
   renderNewResults();
 }
 
+// Picking a model auto-computes the result immediately — the salesman
+// shouldn't have to press "查詢定價" separately once brand+model are set.
+function onNewModelChange() {
+  const brand = document.getElementById('newBrand').value;
+  const model = document.getElementById('newModel').value;
+  if (brand && model) {
+    calcNew();
+  } else if (lastNewCalc) {
+    renderNewResults();
+  }
+}
+
 // The lowest a logged-in staff member is allowed to type into "成交賣價"
 // for a given MSRP, based on their own admin-set discount limit.
 function sellingPriceFloor(msrp) {
@@ -2609,7 +2632,55 @@ function renderNewResults() {
   // Down payment and trade-in both reduce the vehicle price the customer
   // still owes — but never road tax/other fees, which are always paid
   // separately and must never be rolled into the financed (loan) amount.
-  const downPayment = Math.max(0, numOr0(document.getElementById('newDownPayment').value));
+  const downPaymentInput = document.getElementById('newDownPayment');
+  const downPaymentHint = document.getElementById('newDownPaymentHint');
+  const downPayment = Math.max(0, numOr0(downPaymentInput.value));
+
+  // When the negotiated price was bumped above the financing company's
+  // approved base (installmentBasePrice), the excess can't actually be
+  // borrowed — the customer must cover that gap with a down payment, or
+  // the lender simply won't approve the loan. Below that minimum, block
+  // the calculation entirely rather than silently under-financing the deal.
+  const minDownPayment = (currentSubTab === 'installment' && moto.installmentBasePrice !== undefined)
+    ? Math.max(0, sellingPrice - numOr0(moto.installmentBasePrice))
+    : 0;
+  const downPaymentValid = downPayment >= minDownPayment;
+
+  if (minDownPayment > 0) {
+    if (downPaymentValid) {
+      downPaymentInput.classList.remove('border-rose-500');
+      downPaymentHint.className = 'text-[10px] text-amber-600 font-bold mb-4';
+      downPaymentHint.textContent = `此車款貸款價已高於可借貸金額，頭期款至少需要 ${fmt(minDownPayment)}`;
+    } else {
+      downPaymentInput.classList.add('border-rose-500');
+      downPaymentHint.className = 'text-[10px] text-rose-600 font-bold mb-4';
+      downPaymentHint.textContent = `頭期款不足，此車款貸款價已高於可借貸金額，頭期款至少需要 ${fmt(minDownPayment)}，否則無法向借貸公司借到款項`;
+    }
+  } else {
+    downPaymentInput.classList.remove('border-rose-500');
+    downPaymentHint.className = 'text-[10px] text-slate-400 mb-4';
+    downPaymentHint.textContent = '';
+  }
+
+  if (!downPaymentValid) {
+    // Can't compute a result until the down payment meets the minimum —
+    // clear the whole result table instead of showing an under-financed number.
+    ['valRoadTax', 'valPlate', 'valRunner', 'valProcessingFee', 'valOTR', 'valNetPay', 'valFeesSubtotal'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('rowDownPayment').classList.add('hidden');
+    document.getElementById('rowDeduction').classList.add('hidden');
+    document.getElementById('rowTradeInEqLine').classList.add('hidden');
+    document.getElementById('newLoanAction').classList.add('hidden');
+    document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
+    lastNetPayVal = 0;
+    lastOtherFeesVal = 0;
+    lastSellingPriceVal = 0;
+    lastDownPaymentVal = 0;
+    lastRoadTaxVal = 0;
+    return;
+  }
+
   const netPay = Math.max(0, OTRDiffCalc(sellingPrice, appliedTradeInVal + downPayment));
   lastNetPayVal = netPay;
   lastOtherFeesVal = otherFeesVal;
