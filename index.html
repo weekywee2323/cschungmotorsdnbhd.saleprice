@@ -1341,12 +1341,26 @@ let currentStaffMaxDiscount = 0;
 let lastNewCalc = null;         // Cached selected New Bike object
 let appliedTradeInVal = 0;      // Value successfully Applied from Used trade-in valuation
 let lastCalculatedTradeInVal = 0; // Value calculated in used trade-in valuation tab
-let lastNetPayVal = 0;          // Financeable vehicle amount only (sellingPrice - Trade-In - Down Payment) — never includes insurance/road tax/other fees
-let lastOtherFeesVal = 0;       // Insurance + road tax + plate + runner (Used Sale: + inspection) — always paid separately, never financed
-let lastSellingPriceVal = 0;    // Vehicle price only (New Car deal price, or Used Sale deal price) from the last render
-let lastDownPaymentVal = 0;
-let lastInsuranceVal = 0;
-let lastRoadTaxVal = 0;
+
+// New Car and Used Sale each keep their OWN copy of these snapshot values
+// (not a single shared pair) because live Firestore listeners can silently
+// re-render either page in the background (e.g. applyUsedInventoryUpdate()
+// firing while the salesman is looking at New Car) — with one shared set,
+// whichever page happened to re-render last would clobber the other's
+// numbers, so a New Car deal could end up being sent to the Loan Calculator
+// with the previous Used Sale customer's price still attached.
+let newLastNetPayVal = 0;       // New Car: financeable vehicle amount only (sellingPrice - Trade-In - Down Payment) — never includes road tax/other fees
+let newLastOtherFeesVal = 0;    // New Car: road tax + plate + JPJ/processing fee — always paid separately, never financed
+let newLastSellingPriceVal = 0; // New Car: deal price from the last render
+let newLastDownPaymentVal = 0;
+let newLastRoadTaxVal = 0;
+
+let usedSaleLastNetPayVal = 0;       // Used Sale: financeable vehicle amount only
+let usedSaleLastOtherFeesVal = 0;    // Used Sale: insurance + road tax + inspection fee — always paid separately, never financed
+let usedSaleLastSellingPriceVal = 0; // Used Sale: deal price from the last render
+let usedSaleLastDownPaymentVal = 0;
+let usedSaleLastInsuranceVal = 0;
+let usedSaleLastRoadTaxVal = 0;
 
 // Loan Parameters
 let loanTenure = 5;
@@ -2096,12 +2110,12 @@ function renderUsedSaleResults() {
   // never be rolled into the financed (loan) amount.
   const downPayment = Math.max(0, numOr0(document.getElementById('usedSaleDownPayment').value));
   const netPay = Math.max(0, OTRDiffCalc(price, appliedTradeInVal + downPayment));
-  lastNetPayVal = netPay;
-  lastOtherFeesVal = otherFeesVal;
-  lastSellingPriceVal = price;
-  lastDownPaymentVal = downPayment;
-  lastInsuranceVal = insurance;
-  lastRoadTaxVal = roadTaxVal;
+  usedSaleLastNetPayVal = netPay;
+  usedSaleLastOtherFeesVal = otherFeesVal;
+  usedSaleLastSellingPriceVal = price;
+  usedSaleLastDownPaymentVal = downPayment;
+  usedSaleLastInsuranceVal = insurance;
+  usedSaleLastRoadTaxVal = roadTaxVal;
   setLoanRateRestriction(null); // classification-based loan limits are a New Car rule only
   setLoanTenureRestriction(null);
 
@@ -2169,8 +2183,8 @@ function renderUsedSaleResults() {
   }
 
   document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
-  // otherFeesVal isn't shown on this page anymore, but lastOtherFeesVal is
-  // still needed by the settlement screen (via loanSourceInfo.otherFees).
+  // otherFeesVal isn't shown on this page anymore, but usedSaleLastOtherFeesVal
+  // is still needed by the settlement screen (via loanSourceInfo.otherFees).
 
   // Only offer to jump to the Loan Calculator on the Installment sub-tab —
   // Cash sales aren't financed, so there's nothing to send there; Cash
@@ -2583,11 +2597,11 @@ function renderNewResults() {
     document.getElementById('rowTradeInEqLine').classList.add('hidden');
     document.getElementById('newLoanAction').classList.add('hidden');
     document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
-    lastNetPayVal = 0;
-    lastOtherFeesVal = 0;
-    lastSellingPriceVal = 0;
-    lastDownPaymentVal = 0;
-    lastRoadTaxVal = 0;
+    newLastNetPayVal = 0;
+    newLastOtherFeesVal = 0;
+    newLastSellingPriceVal = 0;
+    newLastDownPaymentVal = 0;
+    newLastRoadTaxVal = 0;
     return;
   }
 
@@ -2652,20 +2666,20 @@ function renderNewResults() {
     document.getElementById('rowTradeInEqLine').classList.add('hidden');
     document.getElementById('newLoanAction').classList.add('hidden');
     document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
-    lastNetPayVal = 0;
-    lastOtherFeesVal = 0;
-    lastSellingPriceVal = 0;
-    lastDownPaymentVal = 0;
-    lastRoadTaxVal = 0;
+    newLastNetPayVal = 0;
+    newLastOtherFeesVal = 0;
+    newLastSellingPriceVal = 0;
+    newLastDownPaymentVal = 0;
+    newLastRoadTaxVal = 0;
     return;
   }
 
   const netPay = Math.max(0, OTRDiffCalc(sellingPrice, appliedTradeInVal + downPayment));
-  lastNetPayVal = netPay;
-  lastOtherFeesVal = otherFeesVal;
-  lastSellingPriceVal = sellingPrice;
-  lastDownPaymentVal = downPayment;
-  lastRoadTaxVal = roadTaxVal;
+  newLastNetPayVal = netPay;
+  newLastOtherFeesVal = otherFeesVal;
+  newLastSellingPriceVal = sellingPrice;
+  newLastDownPaymentVal = downPayment;
+  newLastRoadTaxVal = roadTaxVal;
   const isMoped = moto.classification === 'MOPED';
   setLoanRateRestriction(isMoped ? [0.75, 0.833] : null);
   setLoanTenureRestriction(isMoped ? [2, 3, 4, 5] : null);
@@ -2730,8 +2744,8 @@ function renderNewResults() {
   // Final Net Pay value (vehicle price only, excluding insurance/road tax/other fees)
   if (valNetPay) valNetPay.textContent = fmt(netPay);
 
-  // otherFeesVal isn't shown on this page anymore, but lastOtherFeesVal is
-  // still needed by the settlement screen (via loanSourceInfo.otherFees).
+  // otherFeesVal isn't shown on this page anymore, but newLastOtherFeesVal
+  // is still needed by the settlement screen (via loanSourceInfo.otherFees).
 
   // Display Apply offset buttons if calculated trade-in exists
   const applyBtn = document.getElementById('btnApplyTradeInDiscount');
@@ -3060,9 +3074,9 @@ function updateLoanButtonsState() {
   const t = i18n[currentLang];
   const btnApplyNet = document.getElementById('btnApplyNewNetOTR');
 
-  if (lastNetPayVal > 0 && currentSubTab === 'installment') {
+  if (newLastNetPayVal > 0 && currentSubTab === 'installment') {
     btnApplyNet.classList.remove('hidden');
-    btnApplyNet.innerHTML = `<span>⚡</span> ${t.applyNewNetOTR} (${fmt(lastNetPayVal)})`;
+    btnApplyNet.innerHTML = `<span>⚡</span> ${t.applyNewNetOTR} (${fmt(newLastNetPayVal)})`;
   } else {
     btnApplyNet.classList.add('hidden');
   }
@@ -3123,8 +3137,8 @@ function setRate(rate) {
 }
 
 function applyNetOTRToLoan() {
-  if (lastNetPayVal > 0) {
-    document.getElementById('loanAmount').value = lastNetPayVal;
+  if (newLastNetPayVal > 0) {
+    document.getElementById('loanAmount').value = newLastNetPayVal;
   }
   calcLoan();
 }
@@ -3137,26 +3151,33 @@ function applyNetOTRToLoan() {
 // age, collected later) so it starts at 0 and gets folded in afterwards by
 // goToSummaryFromInsuranceCalc(); Used Sale already resolved insurance
 // inline via its own checkboxes, so it's included right away.
+//
+// New Car and Used Sale read from their OWN snapshot variables (not a
+// shared pair) — a live Firestore update can re-render either page in the
+// background at any time, so a shared pair could get silently overwritten
+// by the other flow between the moment the salesman finishes here and the
+// moment they press the button that calls this function.
 function snapshotDealInfo(source) {
   if (source === 'new' && lastNewCalc) {
     loanSourceInfo = {
       source: 'new', brand: lastNewCalc.brand, model: lastNewCalc.model,
-      sellingPrice: lastSellingPriceVal, tradeIn: appliedTradeInVal, downPayment: lastDownPaymentVal,
-      insurance: 0, roadTax: lastRoadTaxVal, otherFees: lastOtherFeesVal,
+      sellingPrice: newLastSellingPriceVal, tradeIn: appliedTradeInVal, downPayment: newLastDownPaymentVal,
+      insurance: 0, roadTax: newLastRoadTaxVal, otherFees: newLastOtherFeesVal,
     };
   } else if (source === 'usedSale' && lastUsedSaleCalc) {
     loanSourceInfo = {
       source: 'usedSale', brand: lastUsedSaleCalc.brand, model: lastUsedSaleCalc.model, plateNo: lastUsedSaleCalc.plateNo,
-      sellingPrice: lastSellingPriceVal, tradeIn: appliedTradeInVal, downPayment: lastDownPaymentVal,
-      insurance: lastInsuranceVal, roadTax: lastRoadTaxVal, otherFees: lastOtherFeesVal,
+      sellingPrice: usedSaleLastSellingPriceVal, tradeIn: appliedTradeInVal, downPayment: usedSaleLastDownPaymentVal,
+      insurance: usedSaleLastInsuranceVal, roadTax: usedSaleLastRoadTaxVal, otherFees: usedSaleLastOtherFeesVal,
     };
   }
 }
 
 function sendToLoanCalculator(source) {
   snapshotDealInfo(source);
-  if (lastNetPayVal > 0) {
-    document.getElementById('loanAmount').value = lastNetPayVal;
+  const netPay = source === 'usedSale' ? usedSaleLastNetPayVal : newLastNetPayVal;
+  if (netPay > 0) {
+    document.getElementById('loanAmount').value = netPay;
   }
   calcLoan();
   switchTab('loan');
