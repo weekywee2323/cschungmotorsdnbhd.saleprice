@@ -2654,7 +2654,7 @@ function renderNewResults() {
     } else {
       downPaymentInput.classList.add('border-rose-500');
       downPaymentHint.className = 'text-[10px] text-rose-600 font-bold mb-4';
-      downPaymentHint.textContent = `頭期款不足，此車款貸款價已高於可借貸金額，頭期款至少需要 ${fmt(minDownPayment)}，否則無法向借貸公司借到款項`;
+      downPaymentHint.textContent = `頭期款不足，頭期款至少需要 ${fmt(minDownPayment)}，否則無法向借貸公司借到款項`;
     }
   } else {
     downPaymentInput.classList.remove('border-rose-500');
