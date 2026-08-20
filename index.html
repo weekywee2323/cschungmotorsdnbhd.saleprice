@@ -377,10 +377,6 @@
               <input type="checkbox" id="chkPlate" class="chk-box" onchange="onNewInputChange()" />
               <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraPlate">預定車牌費</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" id="chkRunner" class="chk-box" onchange="onNewInputChange()" />
-              <span class="text-sm text-slate-600 group-hover:text-slate-900 transition-colors" data-i18n="extraRunner">標車牌人工費</span>
-            </label>
           </div>
 
           <button class="w-full bg-accent-blue hover:bg-accent-blueHover text-white py-3 rounded-xl text-sm font-bold shadow-md transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2" onclick="calcNew()">
@@ -446,19 +442,13 @@
                   </tr>
                 </thead>
                 <tbody id="newResultBody">
-                  <!-- MSRP (reference only, not used in the calculation) -->
-                  <tr class="res-row border-b border-slate-200">
-                    <td class="px-5 py-3 text-slate-500 flex items-center gap-2">
-                      <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      <span data-i18n="rowMSRP">官方建議售價 (MSRP)</span>
-                    </td>
-                    <td class="px-5 py-3 text-right font-semibold text-slate-500" id="valMSRP">—</td>
-                  </tr>
-                  <!-- Negotiated Selling Price (this is what feeds the OTR calc) -->
+                  <!-- Suggested/Negotiated Selling Price — this is what feeds the OTR calc.
+                       The separate MSRP reference row was removed since it's the same
+                       number as this one in practice. -->
                   <tr class="res-row border-b border-slate-200">
                     <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      成交賣價
+                      建議售價
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-emerald-600" id="valSellingPrice">—</td>
                   </tr>
@@ -473,21 +463,13 @@
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-amber-600" id="valRoadTax">—</td>
                   </tr>
-                  <!-- Booking Plate -->
-                  <tr class="res-row dimmed border-b border-slate-200" id="rowPlate">
+                  <!-- Booking Plate — only shown at all when checked, not just dimmed -->
+                  <tr class="res-row hidden border-b border-slate-200" id="rowPlate">
                     <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
                       <span data-i18n="extraPlate">預定車牌費</span>
                     </td>
                     <td class="px-5 py-3 text-right font-bold text-violet-600" id="valPlate">—</td>
-                  </tr>
-                  <!-- Runner Fee -->
-                  <tr class="res-row dimmed border-b border-slate-200" id="rowRunner">
-                    <td class="px-5 py-3 text-slate-700 flex items-center gap-2">
-                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                      <span data-i18n="extraRunner">標車牌人工費</span>
-                    </td>
-                    <td class="px-5 py-3 text-right font-bold text-rose-600" id="valRunner">—</td>
                   </tr>
                   <!-- JPJ & Processing Fee — fixed, not a toggle (CC-based, EV overrides by classification) -->
                   <tr class="res-row border-b border-slate-200" id="rowProcessingFee">
@@ -538,15 +520,6 @@
                   </tr>
                   <tr>
                     <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含路稅/JPJ &amp; Processing Fee/其他費用（不會計入貸款金額，需另外現金支付；保費將於下一步驟計算）</td>
-                  </tr>
-                  <!-- Fees subtotal — kept separate from the vehicle/loan amount on -->
-                  <!-- purpose, never summed together into one combined figure -->
-                  <tr id="rowFeesSubtotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
-                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
-                      路稅/JPJ &amp; Processing Fee/其他費用小計（不含保費）
-                    </td>
-                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="valFeesSubtotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -764,13 +737,6 @@
                   </tr>
                   <tr>
                     <td colspan="2" class="px-5 py-1 text-[10px] text-slate-400">※ 以上金額不含保費/路稅/驗車費（不會計入貸款金額，需另外現金支付）</td>
-                  </tr>
-                  <tr id="usedSaleRowFeesSubtotal" class="res-row border-t-2 border-slate-300 bg-slate-50">
-                    <td class="px-5 py-4 font-extrabold text-slate-800 flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-slate-500 shadow-sm"></span>
-                      保費/路稅/驗車費小計
-                    </td>
-                    <td class="px-5 py-4 text-right font-black text-xl text-slate-800" id="usedSaleValFeesSubtotal">—</td>
                   </tr>
                 </tbody>
               </table>
@@ -2204,7 +2170,8 @@ function renderUsedSaleResults() {
   }
 
   document.getElementById('usedSaleValNetPay').textContent = fmt(netPay);
-  document.getElementById('usedSaleValFeesSubtotal').textContent = fmt(otherFeesVal);
+  // otherFeesVal isn't shown on this page anymore, but lastOtherFeesVal is
+  // still needed by the settlement screen (via loanSourceInfo.otherFees).
 
   // Only offer to jump to the Loan Calculator on the Installment sub-tab —
   // Cash sales aren't financed, so there's nothing to send there; Cash
@@ -2566,7 +2533,6 @@ function renderNewResults() {
   if (!lastNewCalc) return;
   const moto = lastNewCalc;
   const chkPlate = document.getElementById('chkPlate').checked;
-  const chkRunner = document.getElementById('chkRunner').checked;
 
   // Validate the negotiated selling price against this staff member's
   // discount limit before computing anything else.
@@ -2590,15 +2556,15 @@ function renderNewResults() {
   document.getElementById('newSelectedInfo').classList.remove('hidden');
   document.getElementById('newSelectedName').textContent = `${moto.brand} ${moto.model}`;
   document.getElementById('newSelectedCc').textContent = moto.cc ? `${moto.cc} CC` : '未設定';
-  document.getElementById('valMSRP').textContent = fmt(msrp);
   document.getElementById('valSellingPrice').textContent = priceValid ? fmt(enteredPrice) : '—';
 
   if (!priceValid) {
     // Can't compute a result with an out-of-range price — clear the rest
     // of the table instead of showing numbers based on an invalid input.
-    ['valRoadTax', 'valPlate', 'valRunner', 'valProcessingFee', 'valOTR', 'valNetPay', 'valFeesSubtotal'].forEach(id => {
+    ['valRoadTax', 'valPlate', 'valProcessingFee', 'valOTR', 'valNetPay'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
+    document.getElementById('rowPlate').classList.add('hidden');
     document.getElementById('rowDownPayment').classList.add('hidden');
     document.getElementById('rowDeduction').classList.add('hidden');
     document.getElementById('rowTradeInEqLine').classList.add('hidden');
@@ -2623,10 +2589,9 @@ function renderNewResults() {
   const roadTaxRate = findRoadTaxRate(numOr0(moto.cc));
   const roadTaxVal = roadTaxRate ? numOr0(roadTaxRate.roadTax) : 0;
   const plateVal = chkPlate ? (moto.plateBooking || 0) : 0;
-  const runnerVal = chkRunner ? (moto.runnerFee || 0) : 0;
   const procFeeRate = findProcessingFeeRate(moto.classification || '', numOr0(moto.cc));
   const processingFeeVal = procFeeRate ? numOr0(procFeeRate.fee) : 0;
-  const otherFeesVal = roadTaxVal + plateVal + runnerVal + processingFeeVal;
+  const otherFeesVal = roadTaxVal + plateVal + processingFeeVal;
   const otr = sellingPrice + otherFeesVal;
 
   // Down payment and trade-in both reduce the vehicle price the customer
@@ -2665,9 +2630,10 @@ function renderNewResults() {
   if (!downPaymentValid) {
     // Can't compute a result until the down payment meets the minimum —
     // clear the whole result table instead of showing an under-financed number.
-    ['valRoadTax', 'valPlate', 'valRunner', 'valProcessingFee', 'valOTR', 'valNetPay', 'valFeesSubtotal'].forEach(id => {
+    ['valRoadTax', 'valPlate', 'valProcessingFee', 'valOTR', 'valNetPay'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
+    document.getElementById('rowPlate').classList.add('hidden');
     document.getElementById('rowDownPayment').classList.add('hidden');
     document.getElementById('rowDeduction').classList.add('hidden');
     document.getElementById('rowTradeInEqLine').classList.add('hidden');
@@ -2694,26 +2660,15 @@ function renderNewResults() {
   // Road Tax row
   document.getElementById('valRoadTax').textContent = fmt(roadTaxVal);
 
-  // Plate row
+  // Plate row — only shown at all when checked, not just dimmed
   const rowPlate = document.getElementById('rowPlate');
   const valPlate = document.getElementById('valPlate');
   if (chkPlate) {
-    rowPlate.classList.remove('dimmed');
+    rowPlate.classList.remove('hidden');
     valPlate.textContent = fmt(moto.plateBooking || 0);
   } else {
-    rowPlate.classList.add('dimmed');
+    rowPlate.classList.add('hidden');
     valPlate.textContent = '—';
-  }
-
-  // Runner row
-  const rowRunner = document.getElementById('rowRunner');
-  const valRunner = document.getElementById('valRunner');
-  if (chkRunner) {
-    rowRunner.classList.remove('dimmed');
-    valRunner.textContent = fmt(moto.runnerFee || 0);
-  } else {
-    rowRunner.classList.add('dimmed');
-    valRunner.textContent = '—';
   }
 
   // JPJ & Processing Fee row
@@ -2762,10 +2717,8 @@ function renderNewResults() {
   // Final Net Pay value (vehicle price only, excluding insurance/road tax/other fees)
   if (valNetPay) valNetPay.textContent = fmt(netPay);
 
-  // Fees subtotal — insurance/road tax/other fees only, deliberately never
-  // summed with the loan/vehicle amount into one combined figure.
-  const valFeesSubtotal = document.getElementById('valFeesSubtotal');
-  if (valFeesSubtotal) valFeesSubtotal.textContent = fmt(otherFeesVal);
+  // otherFeesVal isn't shown on this page anymore, but lastOtherFeesVal is
+  // still needed by the settlement screen (via loanSourceInfo.otherFees).
 
   // Display Apply offset buttons if calculated trade-in exists
   const applyBtn = document.getElementById('btnApplyTradeInDiscount');
