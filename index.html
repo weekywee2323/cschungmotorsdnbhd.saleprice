@@ -1027,6 +1027,9 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
             <span data-i18n="btnCalcLoan">計算車貸</span>
           </button>
+          <button onclick="clearLoanCalculator()" class="w-full mt-2 text-xs font-bold text-slate-500 hover:text-slate-700 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
+            <span>✕</span> 清除重新計算
+          </button>
         </div>
 
         <!-- RESULT CARD -->
@@ -1223,10 +1226,6 @@
                   <td class="px-5 py-3.5 text-slate-800 font-extrabold">每月供款</td>
                   <td class="px-5 py-3.5 text-right font-black text-lg text-indigo-700" id="receiptMonthly">—</td>
                 </tr>
-                <tr class="res-row border-b border-slate-200">
-                  <td class="px-5 py-3 text-slate-700 font-medium">總利息</td>
-                  <td class="px-5 py-3 text-right font-bold text-rose-600" id="receiptInterest">—</td>
-                </tr>
                 <tr class="res-row">
                   <td class="px-5 py-3.5 text-slate-800 font-extrabold">總還款額</td>
                   <td class="px-5 py-3.5 text-right font-extrabold text-slate-800" id="receiptRepay">—</td>
@@ -1276,7 +1275,7 @@
 
         <p class="text-[10px] text-slate-400 text-center mb-6">以上金額僅供參考，實際貸款條件請以銀行/財務公司核准為準。</p>
 
-        <button onclick="switchTab('new')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold transition-all">← 返回首頁</button>
+        <button onclick="closeSummary()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold transition-all">← 返回</button>
       </div>
     </section>
 
@@ -2406,7 +2405,10 @@ function switchSubTab(subTab) {
   if (catalogChanged) {
     lastNewCalc = null;
     document.getElementById('newSelectedInfo').classList.add('hidden');
-    document.getElementById('newSellingPrice').value = '';
+    const sellingPriceInput = document.getElementById('newSellingPrice');
+    sellingPriceInput.value = '';
+    sellingPriceInput.readOnly = false;
+    sellingPriceInput.classList.remove('bg-slate-100', 'cursor-not-allowed', 'border-rose-500');
     document.getElementById('sellingPriceHint').textContent = '選擇車型後會顯示可議價範圍';
     document.getElementById('newLoanAction').classList.add('hidden');
     document.getElementById('btnGoInsuranceCalc').classList.add('hidden');
@@ -2535,15 +2537,26 @@ function renderNewResults() {
   const chkPlate = document.getElementById('chkPlate').checked;
 
   // Validate the negotiated selling price against this staff member's
-  // discount limit before computing anything else.
+  // discount limit before computing anything else. Installment's price is
+  // locked (not negotiable) — it's always exactly the computed finance
+  // price, so the discount floor doesn't apply there at all.
   const msrp = moto.msrp || 0;
   const floor = sellingPriceFloor(msrp);
   const sellingPriceInput = document.getElementById('newSellingPrice');
+  const isInstallment = currentSubTab === 'installment';
+  sellingPriceInput.readOnly = isInstallment;
+  sellingPriceInput.classList.toggle('bg-slate-100', isInstallment);
+  sellingPriceInput.classList.toggle('cursor-not-allowed', isInstallment);
+  if (isInstallment) sellingPriceInput.value = msrp;
   const enteredPrice = parseFloat(sellingPriceInput.value);
   const hintEl = document.getElementById('sellingPriceHint');
   const priceValid = !isNaN(enteredPrice) && enteredPrice >= floor && enteredPrice <= msrp;
 
-  if (priceValid) {
+  if (isInstallment) {
+    sellingPriceInput.classList.remove('border-rose-500');
+    hintEl.className = 'text-[10px] text-slate-400 mb-4';
+    hintEl.textContent = '分期貸款價格為固定金額，不可議價';
+  } else if (priceValid) {
     sellingPriceInput.classList.remove('border-rose-500');
     hintEl.className = 'text-[10px] text-slate-400 mb-4';
     hintEl.textContent = `官方定價 ${fmt(msrp)}．你最多可折扣至 ${fmt(floor)}（折扣上限 ${currentStaffMaxDiscount}%）`;
@@ -3161,6 +3174,17 @@ function onLoanInputChange() {
   calcLoan();
 }
 
+// Wipes any stale amount/vehicle context left over from a previous, unrelated
+// deal (e.g. a Used Sale loan) so it doesn't bleed into the next calculation.
+function clearLoanCalculator() {
+  document.getElementById('loanAmount').value = '';
+  loanSourceInfo = null;
+  lastLoanCalc = null;
+  setLoanRateRestriction(null);
+  setLoanTenureRestriction(null);
+  calcLoan();
+}
+
 function calcLoan() {
   const amtStr = document.getElementById('loanAmount').value;
   const principal = parseFloat(amtStr);
@@ -3225,6 +3249,13 @@ function showSummary() {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 }
 
+// Returns to whichever page this deal actually came from, instead of
+// always forcing New Car — Used Sale deals should land back on Used Sale.
+function closeSummary() {
+  const dest = (loanSourceInfo && loanSourceInfo.source === 'usedSale') ? 'usedSale' : 'new';
+  switchTab(dest);
+}
+
 function renderLoanReceipt() {
   const c = lastLoanCalc;
 
@@ -3257,7 +3288,6 @@ function renderLoanReceipt() {
     document.getElementById('receiptTenure').textContent = `${c.tenure} 年`;
     document.getElementById('receiptRate').textContent = `${c.rate}%`;
     document.getElementById('receiptMonthly').textContent = fmt(c.monthlyInstalment);
-    document.getElementById('receiptInterest').textContent = fmt(c.totalInterest);
     document.getElementById('receiptRepay').textContent = fmt(c.totalRepayment);
   } else {
     loanSection.classList.add('hidden');
